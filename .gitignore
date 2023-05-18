@@ -24,3 +24,8 @@ betunfair2-*.tar
 
 # Temporary files, for example, from tests.
 /tmp/
+
+# Database
+/data
+
+/.elixir_ls
