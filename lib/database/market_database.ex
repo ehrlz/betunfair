@@ -1,4 +1,4 @@
-defmodule Database do
+defmodule MarketDatabase do
   use GenServer
 
   @doc """
@@ -7,13 +7,11 @@ defmodule Database do
 
   @impl true
   def init(_init) do
-    {:ok, db_users} = CubDB.start_link(data_dir: "data/users")
-    {:ok, db_markets} = CubDB.start_link(data_dir: "data/markets")
-    {:ok, {db_users, db_markets}}
+    CubDB.start_link(data_dir: "data/markets", name: MarketDatabase)
   end
 
   @impl true
-  def handle_call(op, _from, {db_users, db_markets}) do
+  def handle_call(op, _from, db_markets) do
     reply =
       case op do
         {:get_market, market_id} ->
@@ -53,7 +51,7 @@ defmodule Database do
           CubDB.delete_multi(db_markets, entries)
       end
 
-    {:reply, reply, {db_users, db_markets}}
+    {:reply, reply, db_markets}
   end
 
   @impl true
@@ -65,26 +63,26 @@ defmodule Database do
 
   # Market
   def start_link(default) when is_list(default) do
-    GenServer.start_link(__MODULE__, default, name: Database)
+    GenServer.start_link(__MODULE__, default)
   end
 
   @spec get_market(binary()) :: {:ok, map()} | {:error, atom()}
   def get_market(market_id) do
-    GenServer.call(Database, {:get_market, market_id})
+    GenServer.call(MarketDatabase, {:get_market, market_id})
   end
 
   @spec list_markets :: {:ok, [binary()]}
   def list_markets() do
-    GenServer.call(Database, :list_markets)
+    GenServer.call(MarketDatabase, :list_markets)
   end
 
   @spec put_market(binary(), map()) :: :ok
   def put_market(market_id, market) when is_map(market) do
-    GenServer.call(Database, {:put_market, market_id, market})
+    GenServer.call(MarketDatabase, {:put_market, market_id, market})
   end
 
   def put_market(market_id, name, description \\ nil, status \\ :active) do
-    GenServer.call(Database, {:put_market, market_id, name, description, status})
+    GenServer.call(MarketDatabase, {:put_market, market_id, name, description, status})
   end
 
   @spec set_status_market(binary(), :active | :frozen | :cancelled | {:settled, boolean()}) ::
@@ -117,10 +115,10 @@ defmodule Database do
   end
 
   def delete_market(market_id) do
-    GenServer.call(Database, {:delete_market, market_id})
+    GenServer.call(MarketDatabase, {:delete_market, market_id})
   end
 
   def clear_markets() do
-    GenServer.call(Database, :clear_markets)
+    GenServer.call(MarketDatabase, :clear_markets)
   end
 end

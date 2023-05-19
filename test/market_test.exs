@@ -1,6 +1,6 @@
-defmodule DatabaseTest do
+defmodule MarketTest do
   use ExUnit.Case
-  doctest Database
+  doctest MarketDatabase
 
   setup_all do
     Database.start_link([])
