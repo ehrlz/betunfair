@@ -17,15 +17,29 @@ defmodule Database do
     reply =
       case op do
         {:get_market, market_id} ->
-          CubDB.get(db_markets, market_id)
+          case CubDB.get(db_markets, market_id) do
+            nil -> {:error, :not_found}
+            value -> {:ok, value}
+          end
 
         :list_markets ->
-          CubDB.select(db_markets)
-          |> Enum.to_list()
+          list =
+            CubDB.select(db_markets)
+            |> Enum.to_list()
 
-        {:put_market, market_id, name, description} ->
-          new_market = %Market{name: name, description: description}
+          {:ok, list}
+
+        {:put_market, market_id, name, description, status} ->
+          new_market = %Market{
+            name: name,
+            description: description,
+            status: status
+          }
+
           CubDB.put(db_markets, market_id, new_market)
+
+        {:put_market, market_id, market} ->
+          CubDB.put(db_markets, market_id, market)
 
         {:delete_market, market_id} ->
           CubDB.delete(db_markets, market_id)
@@ -54,17 +68,52 @@ defmodule Database do
     GenServer.start_link(__MODULE__, default, name: Database)
   end
 
+  @spec get_market(binary()) :: {:ok, map()} | {:error, atom()}
   def get_market(market_id) do
     GenServer.call(Database, {:get_market, market_id})
   end
 
+  @spec list_markets :: {:ok, [binary()]}
   def list_markets() do
     GenServer.call(Database, :list_markets)
   end
 
-  #REFACTOR
-  def put_market(market_id, name, description) do
-    GenServer.call(Database, {:put_market, market_id, name, description})
+  @spec put_market(binary(), map()) :: :ok
+  def put_market(market_id, market) when is_map(market) do
+    GenServer.call(Database, {:put_market, market_id, market})
+  end
+
+  def put_market(market_id, name, description \\ nil, status \\ :active) do
+    GenServer.call(Database, {:put_market, market_id, name, description, status})
+  end
+
+  @spec set_status_market(binary(), :active | :frozen | :cancelled | {:settled, boolean()}) ::
+          :ok | {:error, atom()}
+  def set_status_market(market_id, status) do
+    case status do
+      :active ->
+        {:ok, market} = get_market(market_id)
+        new_map = Map.put(market, :status, :active)
+        put_market(market_id, new_map)
+
+      :frozen ->
+        {:ok, market} = get_market(market_id)
+        new_map = Map.put(market, :status, :frozen)
+        put_market(market_id, new_map)
+
+      :cancelled ->
+        {:ok, market} = get_market(market_id)
+        new_map = Map.put(market, :status, :cancelled)
+        put_market(market_id, new_map)
+
+      {:settled, result} ->
+        {:ok, market} = get_market(market_id)
+        new_map = Map.put(market, :status, {:settled, result})
+        put_market(market_id, new_map)
+
+      _ ->
+        {:error, :status_not_accepted}
+    end
   end
 
   def delete_market(market_id) do
