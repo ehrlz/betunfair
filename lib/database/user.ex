@@ -1,4 +1,4 @@
-defmodule Market do
+defmodule User do
   defstruct user_id: nil,
             name: nil,
             id: nil,
