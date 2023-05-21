@@ -30,26 +30,32 @@ defmodule UserDatabase do
           end
         #deposit----------------------------
 
-        {:deposit,id, amount} ->
+        {:user_deposit,id, amount} ->
           user = CubDB.get(db_users,id)
           if user != nil do
             total = user.balance + amount
             user = Map.put(user,:balance,total)
             CubDB.put(db_users,id,user)
           else
-            :error
+           {:error,:user_already_exists}
           end
         #withdraw----------------------------
 
-        # {:withdraw,id, amount} ->
-        #   user = CubDB.get(db_users,id)
-        #   if user == nil do
-        #     total = user.balance + amount
-        #     user = Map.put(user,:balance,total)
-        #     CubDB.put(db_users,id,user)
-        #   else
-        #     :error
-        #   end
+        {:user_withdraw,id, amount} ->
+          user = CubDB.get(db_users,id)
+          if user == nil do
+            {:error,:user_already_exists}
+          else
+            total = user.balance
+            if total < amount do
+           {:error,:not_enough_money_to_withdraw}
+            else
+            total = total - amount
+            user = Map.put(user,:balance,total)
+            CubDB.put(db_users,id,user)
+            end
+          end
+
 
         #clear----------------------------
         :clear ->CubDB.clear(db_users)
