@@ -23,10 +23,19 @@ defmodule UserDatabase do
             name: name,
             id: id,
             }
-          CubDB.put(db_users,id,new_user)
-          {:ok, id}
+            CubDB.put(db_users,id,new_user)
+            {:ok, id}
           else
-            :error
+           {:error,:user_already_exists}
+          end
+
+        #get----------------------------
+        {:user_get,id} ->
+          user = CubDB.get(db_users,id)
+          if user != nil do
+          {:ok, user}
+          else
+           {:error,:user_does_not_exist}
           end
         #deposit----------------------------
 
@@ -89,6 +98,10 @@ defmodule UserDatabase do
 
   def user_withdraw(id,amount) do
     GenServer.call(UserDatabase,{:user_withdraw,id,amount})
+  end
+
+  def user_get(id)do
+    GenServer.call(UserDatabase,{:user_get,id})
   end
 
   def clear() do

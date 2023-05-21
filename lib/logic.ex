@@ -117,8 +117,13 @@ defmodule Logic do
     UserDatabase.add_user(id,name)
   end
 
+  @spec user_deposit(any, any) :: any
   def user_deposit(id, amount) do
     UserDatabase.user_deposit(id,amount)
+  end
+
+  def user_get(id) do
+    UserDatabase.user_get(id)
   end
 
 
