@@ -7,6 +7,7 @@ defmodule Logic do
   Starts exchange. If name exists, recovers market TODO
   """
   def start_link(_name) do
+    BetDatabase.start_link([])
     MarketDatabase.start_link([])
     {:ok}
   end
@@ -62,6 +63,7 @@ defmodule Logic do
     {:ok, active_list}
   end
 
+  # TODO cancel each bet in market
   @spec market_cancel(binary) :: :ok | {:error, atom}
   def market_cancel(id) do
     MarketDatabase.set_status_market(id, :cancelled)
@@ -72,6 +74,7 @@ defmodule Logic do
     MarketDatabase.set_status_market(id, :frozen)
   end
 
+  # TODO settle each bet in market
   @spec market_settle(binary(), boolean()) :: :ok | {:error, atom}
   def market_settle(id, result) do
     MarketDatabase.set_status_market(id, {:settled, result})
@@ -101,6 +104,6 @@ defmodule Logic do
 
   @spec bet_get(binary) :: {:error, atom} | {:ok, map}
   def bet_get(id) do
-    BetDatabase.get_bet(id)
+    BetDatabase.bet_get(id)
   end
 end

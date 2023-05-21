@@ -88,30 +88,9 @@ defmodule MarketDatabase do
   @spec set_status_market(binary(), :active | :frozen | :cancelled | {:settled, boolean()}) ::
           :ok | {:error, atom()}
   def set_status_market(market_id, status) do
-    case status do
-      :active ->
-        {:ok, market} = get_market(market_id)
-        new_map = Map.put(market, :status, :active)
-        put_market(market_id, new_map)
-
-      :frozen ->
-        {:ok, market} = get_market(market_id)
-        new_map = Map.put(market, :status, :frozen)
-        put_market(market_id, new_map)
-
-      :cancelled ->
-        {:ok, market} = get_market(market_id)
-        new_map = Map.put(market, :status, :cancelled)
-        put_market(market_id, new_map)
-
-      {:settled, result} ->
-        {:ok, market} = get_market(market_id)
-        new_map = Map.put(market, :status, {:settled, result})
-        put_market(market_id, new_map)
-
-      _ ->
-        {:error, :status_not_accepted}
-    end
+    {:ok, market} = get_market(market_id)
+    new_map = Map.put(market, :status, status)
+    put_market(market_id, new_map)
   end
 
   def delete_market(market_id) do

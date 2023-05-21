@@ -1,4 +1,4 @@
-defmodule BetTest do
+defmodule LogicTest do
   use ExUnit.Case
   doctest Logic
 
@@ -14,13 +14,5 @@ defmodule BetTest do
     {:ok, market: id}
   end
 
-  # TODO
-  test "back bet" do
-  end
-
-  test "lay bet" do
-  end
-
-  test "get bet" do
-  end
+  # TODO bet tests
 end
