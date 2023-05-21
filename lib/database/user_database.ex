@@ -46,14 +46,14 @@ defmodule UserDatabase do
             user = Map.put(user,:balance,total)
             CubDB.put(db_users,id,user)
           else
-           {:error,:user_already_exists}
+            {:error,:user_does_not_exist}
           end
         #withdraw----------------------------
 
         {:user_withdraw,id, amount} ->
           user = CubDB.get(db_users,id)
           if user == nil do
-            {:error,:user_already_exists}
+            {:error,:user_does_not_exist}
           else
             total = user.balance
             if total < amount do
@@ -87,6 +87,7 @@ defmodule UserDatabase do
   end
 
 
+  @spec add_user(any, any) :: any
   def add_user(id,name) do
     GenServer.call(UserDatabase, {:add_user,id,name})
   end
