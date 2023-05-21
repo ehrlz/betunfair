@@ -89,12 +89,19 @@ defmodule Logic do
     MarketDatabase.get_market(id)
   end
 
+  @spec market_bets(binary) :: {:ok, [binary()]}
+  def market_bets(market_id) do
+    list = BetDatabase.list_bets_by_market(market_id)
+
+    {:ok, list}
+  end
+
   @spec market_pending_backs(binary) ::
           {:error, atom} | {:ok, Enumerable.t({integer(), binary()})}
   def market_pending_backs(market_id) do
     list =
       BetDatabase.list_bets_by_market(market_id)
-      |> Enum.filter(fn bet -> bet.status == :active and bet.bet_type == :back end)
+      |> Enum.filter(fn {_id,bet} -> bet.status == :active and bet.bet_type == :back end)
 
     {:ok, list}
   end
@@ -103,32 +110,29 @@ defmodule Logic do
   def market_pending_lays(market_id) do
     list =
       BetDatabase.list_bets_by_market(market_id)
-      |> Enum.filter(fn bet -> bet.status == :active and bet.bet_type == :lay end)
+      |> Enum.filter(fn {_id,bet} -> bet.status == :active and bet.bet_type == :lay end)
 
     {:ok, list}
+  end
+
+  #TODO
+  def market_match(market_id) do
+
   end
 
   # BET
 
   @spec bet_back(binary(), binary(), integer(), integer()) :: {:ok, binary()} | {:error, atom()}
   def bet_back(user_id, market_id, stake, odds) do
-    case MarketDatabase.get_market(market_id) do
-      {:error, :not_found} ->
-        {:error, :market_not_found}
-
-      _ ->
-        case UserDatabase.user_get(user_id) do
-          {:error, :user_not_found} ->
-            {:error, :user_not_found}
-
-          _ ->
-            BetDatabase.new_bet(user_id, market_id, :back, stake, odds)
-        end
-    end
+    bet_new(user_id, market_id, :back, stake, odds)
   end
 
   @spec bet_lay(binary(), binary(), integer(), integer()) :: {:ok, binary()} | {:error, atom()}
   def bet_lay(user_id, market_id, stake, odds) do
+    bet_new(user_id, market_id, :lay, stake, odds)
+  end
+
+  defp bet_new(user_id, market_id, type, stake, odds) do
     case MarketDatabase.get_market(market_id) do
       {:error, :not_found} ->
         {:error, :market_not_found}
@@ -138,12 +142,20 @@ defmodule Logic do
           {:error, :user_not_found} ->
             {:error, :user_not_found}
 
-          _ ->
-            BetDatabase.new_bet(user_id, market_id, :lay, stake, odds)
+          {:ok, user} ->
+            cond do
+              user.balance < stake ->
+                {:error, :insufficient_balance}
+
+              true ->
+                UserDatabase.user_withdraw(user_id, stake)
+                BetDatabase.new_bet(user_id, market_id, type, stake, odds)
+            end
         end
     end
   end
 
+  # TODO match funcionality
   @spec bet_cancel(binary()) :: :ok | {:error, atom()}
   def bet_cancel(bet_id) do
     BetDatabase.bet_cancel(bet_id)

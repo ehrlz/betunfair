@@ -8,11 +8,118 @@ defmodule BetTest do
   end
 
   setup do
-    {:ok, id} = Logic.market_create("Nadal-Nole", "Prueba mercado")
+    {:ok, _id} = Logic.market_create("Nadal-Nole", "Prueba mercado")
     on_exit(fn -> Logic.clean("app") end)
 
-    {:ok, market: id}
+    :ok
   end
 
   # TODO bet tests
+  # BETS
+  test "back bet" do
+    {:ok, user_id} = Logic.user_create("00001111A", "Pepe Viyuela")
+    {:ok, market_id} = Logic.market_create("Nadal-Nole", "Prueba mercado")
+
+    assert Logic.user_deposit(user_id, 1000) == :ok
+
+    {:ok, id} = Logic.bet_back(user_id, market_id, 100, 1.1)
+
+    assert Logic.bet_get(id) ==
+             {:ok,
+              %Bet{
+                bet_type: :back,
+                user_id: user_id,
+                market_id: market_id,
+                odds: 1.1,
+                original_stake: 100,
+                remaining_stake: 100,
+                matched_bets: [],
+                status: :active
+              }}
+
+    assert Logic.user_get(user_id) ==
+             {:ok,
+              %User{
+                name: "Pepe Viyuela",
+                id: "00001111A",
+                balance: 900
+              }}
+  end
+
+  test "lay bet" do
+    {:ok, user_id} = Logic.user_create("00001111A", "Pepe Viyuela")
+    {:ok, market_id} = Logic.market_create("Nadal-Nole", "Prueba mercado")
+    assert Logic.user_deposit(user_id, 1000) == :ok
+
+    {:ok, id} = Logic.bet_lay(user_id, market_id, 100, 1.1)
+
+    assert Logic.bet_get(id) ==
+             {:ok,
+              %Bet{
+                bet_type: :lay,
+                user_id: user_id,
+                market_id: market_id,
+                odds: 1.1,
+                original_stake: 100,
+                remaining_stake: 100,
+                matched_bets: [],
+                status: :active
+              }}
+
+    assert Logic.user_get(user_id) ==
+             {:ok,
+              %User{
+                name: "Pepe Viyuela",
+                id: "00001111A",
+                balance: 900
+              }}
+  end
+
+  test "bet unk user" do
+    {:ok, market_id} = Logic.market_create("Madrid-Atleti", "Prueba mercado")
+
+    assert Logic.bet_lay("00001111A", market_id, 100, 1.1) == {:error, :user_not_found}
+    assert Logic.bet_back("00001111A", market_id, 100, 1.1) == {:error, :user_not_found}
+  end
+
+  test "bet unk market" do
+    {:ok, user_id} = Logic.user_create("00001111A", "Pepe Viyuela")
+    assert Logic.user_deposit(user_id, 1000) == :ok
+
+    assert Logic.bet_lay(user_id, "asdasredqweasd", 100, 1.1) == {:error, :market_not_found}
+    assert Logic.bet_back(user_id, "asdasredqweasd", 100, 1.1) == {:error, :market_not_found}
+  end
+
+  test "bet no money" do
+    {:ok, user_id} = Logic.user_create("00001111A", "Pepe Viyuela")
+    {:ok, market_id} = Logic.market_create("Nadal-Nole", "Prueba mercado")
+
+    {:error, :insufficient_balance} = Logic.bet_lay(user_id, market_id, 100, 1.1)
+  end
+
+  test "bet cancel" do
+    {:ok, user_id} = Logic.user_create("00001111A", "Pepe Viyuela")
+    {:ok, market_id} = Logic.market_create("Nadal-Nole", "Prueba mercado")
+    assert Logic.user_deposit(user_id, 1000) == :ok
+
+    {:ok, id} = Logic.bet_lay(user_id, market_id, 100, 1.1)
+    assert Logic.bet_cancel(id) == :ok
+
+    assert Logic.bet_get(id) ==
+             {:ok,
+              %Bet{
+                bet_type: :lay,
+                user_id: user_id,
+                market_id: market_id,
+                odds: 1.1,
+                original_stake: 100,
+                remaining_stake: 100,
+                matched_bets: [],
+                status: :cancelled
+              }}
+  end
+
+  test "bet cancel unk" do
+    assert Logic.bet_cancel(1) == {:error, :bet_not_found}
+  end
 end

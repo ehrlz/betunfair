@@ -5,6 +5,7 @@ defmodule UserTest do
   setup_all do
     UserDatabase.start_users([])
     :ok
+    on_exit(fn -> UserDatabase.clear() end)
   end
 
   test "create_user" do

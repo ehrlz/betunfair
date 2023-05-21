@@ -42,15 +42,15 @@ defmodule BetDatabase do
 
         {:list_bets, market_id} ->
           CubDB.select(bet_db)
-          |> Enum.filter(fn bet -> bet.market_id == market_id end)
+          |> Enum.filter(fn {_id, bet} -> bet.market_id == market_id end)
 
         {:list_by_market, market_id} ->
           CubDB.select(bet_db)
-          |> Enum.filter(fn bet -> bet.market_id == market_id end)
+          |> Enum.filter(fn {_id, bet} -> bet.market_id == market_id end)
 
         {:list_by_user, user_id} ->
           CubDB.select(bet_db)
-          |> Enum.filter(fn bet -> bet.user_id == user_id end)
+          |> Enum.filter(fn {_id, bet} -> bet.user_id == user_id end)
 
         :clear ->
           CubDB.clear(bet_db)
