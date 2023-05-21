@@ -7,7 +7,8 @@ defmodule UserDatabase do
 
   @impl true
   def init(_init) do
-    CubDB.start_link(data_dir: "data/users", name: UserDatabase)
+    {:ok, db_users} = CubDB.start_link(data_dir: "data/users")
+    {:ok, db_users}
   end
 
   @impl true
@@ -23,6 +24,7 @@ defmodule UserDatabase do
             id: id,
             }
           CubDB.put(db_users,id,new_user)
+
           else
             {:error}
           end
@@ -40,7 +42,7 @@ defmodule UserDatabase do
 
   @spec start_users(maybe_improper_list) :: :ignore | {:error, any} | {:ok, pid}
   def start_users(default) when is_list(default) do
-    GenServer.start_link(__MODULE__, default)
+    GenServer.start_link(__MODULE__, default,name: UserDatabase)
   end
 
 

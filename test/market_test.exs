@@ -3,20 +3,20 @@ defmodule MarketTest do
   doctest MarketDatabase
 
   setup_all do
-    Database.start_link([])
+    MarketDatabase.start_link([])
     :ok
   end
 
   setup do
     market_id = UUID.uuid1()
-    Database.put_market(market_id, "Barcelona-Madrid", "Mercado prueba")
+    MarketDatabase.put_market(market_id, "Barcelona-Madrid", "Mercado prueba")
 
-    on_exit(fn -> Database.delete_market(market_id) end)
+    on_exit(fn -> MarketDatabase.delete_market(market_id) end)
     {:ok, market: market_id}
   end
 
   test "get market", state do
-    assert Database.get_market(state[:market]) ==
+    assert MarketDatabase.get_market(state[:market]) ==
              {:ok,
               %Market{
                 name: "Barcelona-Madrid",
@@ -29,38 +29,38 @@ defmodule MarketTest do
     id_list =
       for _n <- 1..4 do
         id = UUID.uuid1()
-        Database.put_market(id, "Prueba", "Desc. prueba")
+        MarketDatabase.put_market(id, "Prueba", "Desc. prueba")
         id
       end
 
-    {:ok, list} = Database.list_markets()
+    {:ok, list} = MarketDatabase.list_markets()
     assert length(list) == 5
 
     for id <- id_list do
-      Database.delete_market(id)
+      MarketDatabase.delete_market(id)
     end
   end
 
   test "put market" do
     market_id = UUID.uuid1()
-    assert Database.put_market(market_id, "Prueba", "Desc. prueba") == :ok
-    Database.delete_market(market_id)
+    assert MarketDatabase.put_market(market_id, "Prueba", "Desc. prueba") == :ok
+    MarketDatabase.delete_market(market_id)
   end
 
   test "delete market" do
     market_id = UUID.uuid1()
-    assert Database.put_market(market_id, "Prueba", "Desc. prueba") == :ok
-    Database.delete_market(market_id)
+    assert MarketDatabase.put_market(market_id, "Prueba", "Desc. prueba") == :ok
+    MarketDatabase.delete_market(market_id)
   end
 
   test "clear market" do
-    assert Database.clear_markets() == :ok
+    assert MarketDatabase.clear_markets() == :ok
 
-    {:ok, list} = Database.list_markets()
+    {:ok, list} = MarketDatabase.list_markets()
     assert length(list) == 0
   end
 
   test "set unk status", state do
-    assert Database.set_status_market(state[:market], :strange) == {:error, :status_not_accepted}
+    assert MarketDatabase.set_status_market(state[:market], :strange) == {:error, :status_not_accepted}
   end
 end
