@@ -7,7 +7,8 @@ defmodule MarketDatabase do
 
   @impl true
   def init(_init) do
-    CubDB.start_link(data_dir: "data/markets", name: MarketDatabase)
+    {:ok, db_market} = CubDB.start_link(data_dir: "data/markets")
+    {:ok,db_market}
   end
 
   @impl true
@@ -63,7 +64,7 @@ defmodule MarketDatabase do
 
   # Market
   def start_link(default) when is_list(default) do
-    GenServer.start_link(__MODULE__, default)
+    GenServer.start_link(__MODULE__, default,name: MarketDatabase)
   end
 
   @spec get_market(binary()) :: {:ok, map()} | {:error, atom()}
