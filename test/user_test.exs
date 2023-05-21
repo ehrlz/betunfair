@@ -2,20 +2,18 @@ defmodule UserTest do
   use ExUnit.Case
   doctest UserDatabase
 
-  setup_all do
-    UserDatabase.start_users([])
+  setup do
+    UserDatabase.clear("testdb")
+    UserDatabase.start_link(["testdb"])
     :ok
-    on_exit(fn -> UserDatabase.clear() end)
   end
 
   test "create_user" do
-    UserDatabase.clear()
     assert UserDatabase.add_user(1, "dani") == {:ok, 1}
     assert UserDatabase.add_user(1, "dani") == {:error, :user_already_exists}
   end
 
   test "deposit and withdraw" do
-    UserDatabase.clear()
     assert UserDatabase.add_user(1, "dani") == {:ok, 1}
     assert UserDatabase.user_deposit(1, 10) == :ok
     assert UserDatabase.user_deposit(2, 10) == {:error, :user_does_not_exist}
@@ -25,7 +23,6 @@ defmodule UserTest do
   end
 
   test "get user" do
-    UserDatabase.clear()
     assert UserDatabase.add_user(1, "dani") == {:ok, 1}
     assert UserDatabase.user_get(1) == {:ok, %User{name: "dani", id: 1, balance: 0}}
     assert UserDatabase.user_get(2) == {:error, :user_not_found}

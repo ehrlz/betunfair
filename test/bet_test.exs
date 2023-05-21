@@ -3,14 +3,13 @@ defmodule BetTest do
   doctest Logic
 
   setup_all do
-    Logic.start_link("app")
+
     :ok
   end
 
   setup do
-    {:ok, _id} = Logic.market_create("Nadal-Nole", "Prueba mercado")
-    on_exit(fn -> Logic.clean("app") end)
-
+    Logic.clean("app")
+    Logic.start_link("app")
     :ok
   end
 

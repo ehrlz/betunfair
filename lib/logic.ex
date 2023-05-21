@@ -9,25 +9,29 @@ defmodule Logic do
   """
   def start_link(name) do
     MarketDatabase.start_link([name])
-    UserDatabase.start_users([name])
+    UserDatabase.start_link([name])
     BetDatabase.start_link([name])
     {:ok}
   end
 
   @doc """
-  Shutdown running exchange preserving data TODO
+  Shutdown running exchange preserving data.
+  TODO supervisor
   """
   def stop() do
-    :ok
+    UserDatabase.stop()
+    MarketDatabase.stop()
+    BetDatabase.stop()
   end
 
   @doc """
-  Stops the exchange and removes persistent data TODO
+  Stops the exchange and removes persistent data.
+  TODO supervisor
   """
   def clean(name) do
-    UserDatabase.clear()
-    MarketDatabase.clear()
-    BetDatabase.clear()
+    UserDatabase.clear(name)
+    MarketDatabase.clear(name)
+    BetDatabase.clear(name)
   end
 
   # MARKET

@@ -2,20 +2,16 @@ defmodule LogicTest do
   use ExUnit.Case
   doctest Logic
 
-  setup_all do
-    Logic.start_link("app")
+  setup do
+    Logic.clean("testdb")
+    Logic.start_link("testdb")
     :ok
   end
 
-  setup do
+  test "market get" do
     {:ok, id} = Logic.market_create("Nadal-Nole", "Prueba mercado")
-    on_exit(fn -> Logic.clean("app") end)
 
-    {:ok, market: id}
-  end
-
-  test "market get", state do
-    assert Logic.market_get(state[:market]) ==
+    assert Logic.market_get(id) ==
              {:ok, %Market{name: "Nadal-Nole", description: "Prueba mercado"}}
   end
 
@@ -25,6 +21,7 @@ defmodule LogicTest do
   end
 
   test "market list" do
+    {:ok, _id1} = Logic.market_create("Nadal-Nole", "Prueba mercado")
     {:ok, _id2} = Logic.market_create("Barcelona-Madrid", nil)
     {:ok, _id3} = Logic.market_create("CSKA-Estrella Roja", nil)
 
@@ -33,6 +30,7 @@ defmodule LogicTest do
   end
 
   test "market list active" do
+    {:ok, _id1} = Logic.market_create("Nadal-Nole", "Prueba mercado")
     {:ok, id2} = Logic.market_create("Barcelona-Madrid", nil)
     {:ok, _id3} = Logic.market_create("CSKA-Estrella Roja", nil)
 
@@ -42,7 +40,8 @@ defmodule LogicTest do
     assert length(id_list) == 2
   end
 
-  test "market list active 2", state do
+  test "market list active 2" do
+    {:ok, id1} = Logic.market_create("Nadal-Nole", "Prueba mercado")
     {:ok, id2} = Logic.market_create("Barcelona-Madrid", nil)
     {:ok, id3} = Logic.market_create("CSKA-Estrella Roja", nil)
 
@@ -50,28 +49,31 @@ defmodule LogicTest do
     Logic.market_freeze(id3)
 
     {:ok, id_list} = Logic.market_list_active()
-    assert id_list == [state[:market]]
+    assert id_list == [id1]
   end
 
-  test "market cancel", state do
-    Logic.market_cancel(state[:market])
+  test "market cancel" do
+    {:ok, id1} = Logic.market_create("Nadal-Nole", "Prueba mercado")
+    assert Logic.market_cancel(id1) == :ok
 
-    {:ok, market} = Logic.market_get(state[:market])
-    assert Map.get(market, :status) == :cancelled
+    {:ok, market} = Logic.market_get(id1)
+    assert market.status == :cancelled
   end
 
-  test "market freeze", state do
-    Logic.market_freeze(state[:market])
+  test "market freeze" do
+    {:ok, id1} = Logic.market_create("Nadal-Nole", "Prueba mercado")
+    assert Logic.market_freeze(id1) == :ok
 
-    {:ok, market} = Logic.market_get(state[:market])
-    assert Map.get(market, :status) == :frozen
+    {:ok, market} = Logic.market_get(id1)
+    assert market.status == :frozen
   end
 
-  test "market settle", state do
-    Logic.market_settle(state[:market], false)
+  test "market settle" do
+    {:ok, id1} = Logic.market_create("Nadal-Nole", "Prueba mercado")
+    assert Logic.market_settle(id1, false) == :ok
 
-    {:ok, market} = Logic.market_get(state[:market])
-    assert Map.get(market, :status) == {:settled, false}
+    {:ok, market} = Logic.market_get(id1)
+    assert market.status == {:settled, false}
   end
 
   test "market bets" do
@@ -124,51 +126,5 @@ defmodule LogicTest do
     {:ok, list} = Logic.market_pending_lays(market_id)
     # 3, 6 and 7
     assert length(list) == 3
-  end
-
-  # DATABASE
-  test "get market", state do
-    assert MarketDatabase.get_market(state[:market]) ==
-             {:ok,
-              %Market{
-                name: "Nadal-Nole",
-                description: "Prueba mercado",
-                status: :active
-              }}
-  end
-
-  test "list market" do
-    id_list =
-      for _n <- 1..4 do
-        id = UUID.uuid1()
-        MarketDatabase.put_market(id, "Prueba", "Desc. prueba")
-        id
-      end
-
-    {:ok, list} = MarketDatabase.list_markets()
-    assert length(list) == 5
-
-    for id <- id_list do
-      MarketDatabase.delete_market(id)
-    end
-  end
-
-  test "put market" do
-    market_id = UUID.uuid1()
-    assert MarketDatabase.put_market(market_id, "Prueba", "Desc. prueba") == :ok
-    MarketDatabase.delete_market(market_id)
-  end
-
-  test "delete market" do
-    market_id = UUID.uuid1()
-    assert MarketDatabase.put_market(market_id, "Prueba", "Desc. prueba") == :ok
-    MarketDatabase.delete_market(market_id)
-  end
-
-  test "clear market" do
-    assert MarketDatabase.clear() == :ok
-
-    {:ok, list} = MarketDatabase.list_markets()
-    assert length(list) == 0
   end
 end

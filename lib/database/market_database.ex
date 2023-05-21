@@ -41,6 +41,7 @@ defmodule MarketDatabase do
             |> Enum.map(fn {id, _market} -> id end)
 
           CubDB.delete_multi(db_markets, entries)
+          CubDB.stop(db_markets)
       end
 
     {:reply, reply, db_markets}
@@ -82,7 +83,37 @@ defmodule MarketDatabase do
     GenServer.call(MarketDatabase, {:delete, market_id})
   end
 
-  def clear() do
-    GenServer.call(MarketDatabase, :clear)
+  @doc """
+  Removes persistent data and stops server if it's running
+  """
+  @spec clear(name :: binary()) :: :ok
+  def clear(name) do
+    case GenServer.whereis(MarketDatabase) do
+      nil ->
+        {:ok, pid} = start_link([name])
+        GenServer.call(pid, :clear)
+        GenServer.stop(pid)
+
+      pid ->
+        GenServer.call(pid, :clear)
+        GenServer.stop(pid)
+    end
+
+    :ok
+  end
+
+  @doc """
+  Stops server process
+  """
+  @spec stop() :: :ok | {:error, :exchange_not_deployed}
+  def stop() do
+    case GenServer.whereis(UserDatabase) do
+      nil ->
+        {:error, :exchange_not_deployed}
+
+      pid ->
+        GenServer.stop(pid)
+        :ok
+    end
   end
 end

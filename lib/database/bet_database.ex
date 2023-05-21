@@ -55,6 +55,7 @@ defmodule BetDatabase do
 
         :clear ->
           CubDB.clear(bet_db)
+          CubDB.stop(bet_db)
       end
 
     {:reply, reply, bet_db}
@@ -68,7 +69,7 @@ defmodule BetDatabase do
   # Client
 
   def start_link(default) when is_list(default) do
-    GenServer.start_link(__MODULE__, default, name: BetDB)
+    GenServer.start_link(__MODULE__, default, name: BetDatabase)
   end
 
   @spec new_bet(binary(), binary(), atom(), integer(), integer()) ::
@@ -83,32 +84,60 @@ defmodule BetDatabase do
       odds: odds
     }
 
-    GenServer.call(BetDB, {:new_bet, new_bet})
+    GenServer.call(BetDatabase, {:new_bet, new_bet})
   end
 
   @spec bet_cancel(binary()) :: :ok | {:error, atom()}
   def bet_cancel(bet_id) do
-    GenServer.call(BetDB, {:bet_cancel, bet_id})
+    GenServer.call(BetDatabase, {:bet_cancel, bet_id})
   end
 
   @spec bet_get(binary()) :: {:ok, map()} | {:error, atom()}
   def bet_get(bet_id) do
-    GenServer.call(BetDB, {:bet_get, bet_id})
+    GenServer.call(BetDatabase, {:bet_get, bet_id})
   end
 
   def list_bets(market_id) do
-    GenServer.call(BetDB, {:list_bets, market_id})
+    GenServer.call(BetDatabase, {:list_bets, market_id})
   end
 
   def list_bets_by_market(market_id) do
-    GenServer.call(BetDB, {:list_by_market, market_id})
+    GenServer.call(BetDatabase, {:list_by_market, market_id})
   end
 
   def list_bets_by_user(user_id) do
-    GenServer.call(BetDB, {:list_by_user, user_id})
+    GenServer.call(BetDatabase, {:list_by_user, user_id})
   end
 
-  def clear() do
-    GenServer.call(UserDatabase, :clear)
+  @doc """
+  Removes persistent data and stops server if it's running
+  """
+  def clear(name) do
+    case GenServer.whereis(BetDatabase) do
+      nil ->
+        {:ok, pid} = start_link([name])
+        GenServer.call(pid, :clear)
+        GenServer.stop(pid)
+
+      pid ->
+        GenServer.call(pid, :clear)
+        GenServer.stop(pid)
+    end
+
+    :ok
+  end
+
+  @doc """
+  Stops server process
+  """
+  def stop() do
+    case GenServer.whereis(MarketDatabase) do
+      nil ->
+        {:error, :exchange_not_deployed}
+
+      pid ->
+        GenServer.stop(pid)
+        :ok
+    end
   end
 end
