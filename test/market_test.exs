@@ -166,7 +166,7 @@ defmodule LogicTest do
   end
 
   test "clear market" do
-    assert MarketDatabase.clear_markets() == :ok
+    assert MarketDatabase.clear() == :ok
 
     {:ok, list} = MarketDatabase.list_markets()
     assert length(list) == 0

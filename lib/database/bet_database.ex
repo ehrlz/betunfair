@@ -6,8 +6,9 @@ defmodule BetDatabase do
   """
 
   @impl true
-  def init(_init) do
-    CubDB.start_link(data_dir: "data/bets")
+  def init(init) do
+    [name] = init
+    CubDB.start_link(data_dir: "data/#{name}/bets")
   end
 
   @impl true

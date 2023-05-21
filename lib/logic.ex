@@ -7,10 +7,10 @@ defmodule Logic do
   @doc """
   Starts exchange. If name exists, recovers market TODO
   """
-  def start_link(_name) do
-    MarketDatabase.start_link([])
-    UserDatabase.start_users([])
-    BetDatabase.start_link([])
+  def start_link(name) do
+    MarketDatabase.start_link([name])
+    UserDatabase.start_users([name])
+    BetDatabase.start_link([name])
     {:ok}
   end
 
@@ -24,9 +24,9 @@ defmodule Logic do
   @doc """
   Stops the exchange and removes persistent data TODO
   """
-  def clean(_name) do
+  def clean(name) do
     UserDatabase.clear()
-    MarketDatabase.clear_markets()
+    MarketDatabase.clear()
     BetDatabase.clear()
   end
 
@@ -70,18 +70,28 @@ defmodule Logic do
   # TODO cancel each bet in market
   @spec market_cancel(binary) :: :ok | {:error, atom}
   def market_cancel(id) do
-    MarketDatabase.set_status_market(id, :cancelled)
+    market_set_status(id, :cancelled)
   end
 
   @spec market_freeze(binary) :: :ok | {:error, atom}
   def market_freeze(id) do
-    MarketDatabase.set_status_market(id, :frozen)
+    market_set_status(id, :frozen)
   end
 
   # TODO settle each bet in market
   @spec market_settle(binary(), boolean()) :: :ok | {:error, atom}
   def market_settle(id, result) do
-    MarketDatabase.set_status_market(id, {:settled, result})
+    market_set_status(id, {:settled, result})
+  end
+
+  defp market_set_status(id, status) do
+    case MarketDatabase.get_market(id) do
+      {:error, :not_found} ->
+        {:error, :market_not_found}
+
+      {:ok, market} ->
+        MarketDatabase.put_market(id, market.name, market.description, status)
+    end
   end
 
   @spec market_get(binary) :: {:error, atom} | {:ok, map}
@@ -101,7 +111,7 @@ defmodule Logic do
   def market_pending_backs(market_id) do
     list =
       BetDatabase.list_bets_by_market(market_id)
-      |> Enum.filter(fn {_id,bet} -> bet.status == :active and bet.bet_type == :back end)
+      |> Enum.filter(fn {_id, bet} -> bet.status == :active and bet.bet_type == :back end)
 
     {:ok, list}
   end
@@ -110,14 +120,13 @@ defmodule Logic do
   def market_pending_lays(market_id) do
     list =
       BetDatabase.list_bets_by_market(market_id)
-      |> Enum.filter(fn {_id,bet} -> bet.status == :active and bet.bet_type == :lay end)
+      |> Enum.filter(fn {_id, bet} -> bet.status == :active and bet.bet_type == :lay end)
 
     {:ok, list}
   end
 
-  #TODO
+  # TODO
   def market_match(market_id) do
-
   end
 
   # BET

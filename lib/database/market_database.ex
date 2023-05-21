@@ -6,43 +6,35 @@ defmodule MarketDatabase do
   """
 
   @impl true
-  def init(_init) do
-    CubDB.start_link(data_dir: "data/markets")
+  def init(init) do
+    [name] = init
+    CubDB.start_link(data_dir: "data/#{name}/markets")
   end
 
   @impl true
   def handle_call(op, _from, db_markets) do
     reply =
       case op do
-        {:get_market, market_id} ->
+        {:get, market_id} ->
           case CubDB.get(db_markets, market_id) do
             nil -> {:error, :not_found}
             value -> {:ok, value}
           end
 
-        :list_markets ->
+        :list ->
           list =
             CubDB.select(db_markets)
             |> Enum.to_list()
 
           {:ok, list}
 
-        {:put_market, market_id, name, description, status} ->
-          new_market = %Market{
-            name: name,
-            description: description,
-            status: status
-          }
-
-          CubDB.put(db_markets, market_id, new_market)
-
-        {:put_market, market_id, market} ->
+        {:put, market_id, market} ->
           CubDB.put(db_markets, market_id, market)
 
-        {:delete_market, market_id} ->
+        {:delete, market_id} ->
           CubDB.delete(db_markets, market_id)
 
-        :clear_markets ->
+        :clear ->
           entries =
             CubDB.select(db_markets)
             |> Enum.to_list()
@@ -68,36 +60,29 @@ defmodule MarketDatabase do
 
   @spec get_market(binary()) :: {:ok, map()} | {:error, atom()}
   def get_market(market_id) do
-    GenServer.call(MarketDatabase, {:get_market, market_id})
+    GenServer.call(MarketDatabase, {:get, market_id})
   end
 
   @spec list_markets :: {:ok, [binary()]}
   def list_markets() do
-    GenServer.call(MarketDatabase, :list_markets)
-  end
-
-  @spec put_market(binary(), map()) :: :ok
-  def put_market(market_id, market) when is_map(market) do
-    GenServer.call(MarketDatabase, {:put_market, market_id, market})
+    GenServer.call(MarketDatabase, :list)
   end
 
   def put_market(market_id, name, description \\ nil, status \\ :active) do
-    GenServer.call(MarketDatabase, {:put_market, market_id, name, description, status})
-  end
+    new_market = %Market{
+      name: name,
+      description: description,
+      status: status
+    }
 
-  @spec set_status_market(binary(), :active | :frozen | :cancelled | {:settled, boolean()}) ::
-          :ok | {:error, atom()}
-  def set_status_market(market_id, status) do
-    {:ok, market} = get_market(market_id)
-    new_map = Map.put(market, :status, status)
-    put_market(market_id, new_map)
+    GenServer.call(MarketDatabase, {:put, market_id, new_market})
   end
 
   def delete_market(market_id) do
-    GenServer.call(MarketDatabase, {:delete_market, market_id})
+    GenServer.call(MarketDatabase, {:delete, market_id})
   end
 
-  def clear_markets() do
-    GenServer.call(MarketDatabase, :clear_markets)
+  def clear() do
+    GenServer.call(MarketDatabase, :clear)
   end
 end

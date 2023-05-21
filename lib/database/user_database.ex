@@ -6,8 +6,9 @@ defmodule UserDatabase do
   """
 
   @impl true
-  def init(_init) do
-    CubDB.start_link(data_dir: "data/users")
+  def init(init) do
+    [name] = init
+    CubDB.start_link(data_dir: "data/#{name}/users")
   end
 
   @impl true
