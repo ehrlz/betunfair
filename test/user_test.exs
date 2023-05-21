@@ -6,7 +6,6 @@ defmodule UserTest do
     Database.start_users([])
     :ok
   end
-end
 
   test "add user", state do
     assert Database.add_user("eloy","001") == {:ok}
