@@ -2,13 +2,14 @@ defmodule Logic do
   @moduledoc """
   Project from Universidad Politécnica de Madrid
   """
+  alias CubDB.Btree.Enumerable
 
   @doc """
   Starts exchange. If name exists, recovers market TODO
   """
   def start_link(_name) do
-    BetDatabase.start_link([])
     MarketDatabase.start_link([])
+    BetDatabase.start_link([])
     {:ok}
   end
 
@@ -85,16 +86,31 @@ defmodule Logic do
     MarketDatabase.get_market(id)
   end
 
+  @spec market_pending_backs(binary) ::
+          {:error, atom} | {:ok, Enumerable.t({integer(), binary()})}
+  def market_pending_backs(market_id) do
+    list = BetDatabase.list_bets_by_market(market_id)
+    |> Enum.filter(fn bet -> bet.status == :active and bet.bet_type == :back end)
+    {:ok, list}
+  end
+
+  @spec market_pending_lays(binary) :: {:error, atom} | {:ok, Enumerable.t({integer(), binary()})}
+  def market_pending_lays(market_id) do
+    list = BetDatabase.list_bets_by_market(market_id)
+    |> Enum.filter(fn bet -> bet.status == :active and bet.bet_type == :lay end)
+    {:ok, list}
+  end
+
   # BET
 
   @spec bet_back(binary(), binary(), integer(), integer()) :: {:ok, binary()} | {:error, atom()}
   def bet_back(user_id, market_id, stake, odds) do
-    BetDatabase.bet_back(user_id, market_id, stake, odds)
+    BetDatabase.new_bet(user_id, market_id, :back, stake, odds)
   end
 
   @spec bet_lay(binary(), binary(), integer(), integer()) :: {:ok, binary()} | {:error, atom()}
   def bet_lay(user_id, market_id, stake, odds) do
-    BetDatabase.bet_lay(user_id, market_id, stake, odds)
+    BetDatabase.new_bet(user_id, market_id, :lay, stake, odds)
   end
 
   @spec bet_cancel(binary()) :: :ok | {:error, atom()}

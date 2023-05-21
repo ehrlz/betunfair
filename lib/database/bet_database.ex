@@ -39,6 +39,14 @@ defmodule BetDatabase do
             bet ->
               {:ok, bet}
           end
+
+        {:list_by_market, market_id} ->
+          CubDB.select(bet_db)
+          |> Enum.filter(fn bet -> bet.market_id == market_id end)
+
+        {:list_by_user, user_id} ->
+          CubDB.select(bet_db)
+          |> Enum.filter(fn bet -> bet.user_id == user_id end)
       end
 
     {:reply, reply, bet_db}
@@ -55,24 +63,11 @@ defmodule BetDatabase do
     GenServer.start_link(__MODULE__, default)
   end
 
-  @spec bet_back(binary(), binary(), integer(), integer()) :: {:ok, binary()} | {:error, atom()}
-  def bet_back(user_id, market_id, stake, odds) do
+  @spec new_bet(binary(), binary(), atom(), integer(), integer()) ::
+          {:ok, binary()} | {:error, atom()}
+  def new_bet(user_id, market_id, type, stake, odds) do
     new_bet = %Bet{
-      bet_type: :back,
-      user_id: user_id,
-      market_id: market_id,
-      original_stake: stake,
-      remaining_stake: stake,
-      odds: odds
-    }
-
-    GenServer.call(BetDB, {:new_bet, market_id, new_bet})
-  end
-
-  @spec bet_lay(binary(), binary(), integer(), integer()) :: {:ok, binary()} | {:error, atom()}
-  def bet_lay(user_id, market_id, stake, odds) do
-    new_bet = %Bet{
-      bet_type: :lay,
+      bet_type: type,
       user_id: user_id,
       market_id: market_id,
       original_stake: stake,
@@ -91,5 +86,13 @@ defmodule BetDatabase do
   @spec bet_get(binary()) :: {:ok, map()} | {:error, atom()}
   def bet_get(bet_id) do
     GenServer.call(BetDB, {:bet_get, bet_id})
+  end
+
+  def list_bets_by_market(market_id) do
+    GenServer.call(BetDB, {:list_by_market, market_id})
+  end
+
+  def list_bets_by_user(user_id) do
+    GenServer.call(BetDB, {:list_by_user, user_id})
   end
 end
