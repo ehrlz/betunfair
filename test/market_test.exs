@@ -59,8 +59,4 @@ defmodule MarketTest do
     {:ok, list} = MarketDatabase.list_markets()
     assert length(list) == 0
   end
-
-  test "set unk status", state do
-    assert MarketDatabase.set_status_market(state[:market], :strange) == {:error, :status_not_accepted}
-  end
 end

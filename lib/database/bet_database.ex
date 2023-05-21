@@ -2,12 +2,12 @@ defmodule BetDatabase do
   use GenServer
 
   @doc """
-  Server that handles request from user data
+  Server that handles request from bet data
   """
 
   @impl true
   def init(_init) do
-    CubDB.start_link(data_dir: "data/bets", name: BetDB)
+    CubDB.start_link(data_dir: "data/bets")
   end
 
   @impl true
@@ -34,11 +34,15 @@ defmodule BetDatabase do
         {:bet_get, bet_id} ->
           case CubDB.get(bet_db, bet_id) do
             nil ->
-              {:error, :market_not_found}
+              {:error, :bet_not_found}
 
             bet ->
               {:ok, bet}
           end
+
+        {:list_bets, market_id} ->
+          CubDB.select(bet_db)
+          |> Enum.filter(fn bet -> bet.market_id == market_id end)
 
         {:list_by_market, market_id} ->
           CubDB.select(bet_db)
@@ -47,6 +51,9 @@ defmodule BetDatabase do
         {:list_by_user, user_id} ->
           CubDB.select(bet_db)
           |> Enum.filter(fn bet -> bet.user_id == user_id end)
+
+        :clear ->
+          CubDB.clear(bet_db)
       end
 
     {:reply, reply, bet_db}
@@ -60,7 +67,7 @@ defmodule BetDatabase do
   # Client
 
   def start_link(default) when is_list(default) do
-    GenServer.start_link(__MODULE__, default)
+    GenServer.start_link(__MODULE__, default, name: BetDB)
   end
 
   @spec new_bet(binary(), binary(), atom(), integer(), integer()) ::
@@ -75,7 +82,7 @@ defmodule BetDatabase do
       odds: odds
     }
 
-    GenServer.call(BetDB, {:new_bet, market_id, new_bet})
+    GenServer.call(BetDB, {:new_bet, new_bet})
   end
 
   @spec bet_cancel(binary()) :: :ok | {:error, atom()}
@@ -88,11 +95,19 @@ defmodule BetDatabase do
     GenServer.call(BetDB, {:bet_get, bet_id})
   end
 
+  def list_bets(market_id) do
+    GenServer.call(BetDB, {:list_bets, market_id})
+  end
+
   def list_bets_by_market(market_id) do
     GenServer.call(BetDB, {:list_by_market, market_id})
   end
 
   def list_bets_by_user(user_id) do
     GenServer.call(BetDB, {:list_by_user, user_id})
+  end
+
+  def clear() do
+    GenServer.call(UserDatabase, :clear)
   end
 end

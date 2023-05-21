@@ -7,68 +7,72 @@ defmodule UserDatabase do
 
   @impl true
   def init(_init) do
-    {:ok, db_users} = CubDB.start_link(data_dir: "data/users")
-    {:ok, db_users}
+    CubDB.start_link(data_dir: "data/users")
   end
 
   @impl true
   def handle_call(op, _from, db_users) do
     reply =
       case op do
-        #add_user----------------------------
-        {:add_user,id, name} ->
-
-          if CubDB.get(db_users,id) == nil do
+        # add_user----------------------------
+        {:add_user, id, name} ->
+          if CubDB.get(db_users, id) == nil do
             new_user = %User{
-            name: name,
-            id: id,
+              name: name,
+              id: id
             }
-            CubDB.put(db_users,id,new_user)
+
+            CubDB.put(db_users, id, new_user)
             {:ok, id}
           else
-           {:error,:user_already_exists}
+            {:error, :user_already_exists}
           end
 
-        #get----------------------------
-        {:user_get,id} ->
-          user = CubDB.get(db_users,id)
-          if user != nil do
-          {:ok, user}
-          else
-           {:error,:user_does_not_exist}
-          end
-        #deposit----------------------------
+        # get----------------------------
+        {:user_get, id} ->
+          case CubDB.get(db_users, id) do
+            nil ->
+              {:error, :user_not_found}
 
-        {:user_deposit,id, amount} ->
-          user = CubDB.get(db_users,id)
+            user ->
+              {:ok, user}
+          end
+
+        # deposit---------------------------- TODO cambiar sintaxis
+
+        {:user_deposit, id, amount} ->
+          user = CubDB.get(db_users, id)
+
           if user != nil do
             total = user.balance + amount
-            user = Map.put(user,:balance,total)
-            CubDB.put(db_users,id,user)
+            user = Map.put(user, :balance, total)
+            CubDB.put(db_users, id, user)
           else
-            {:error,:user_does_not_exist}
+            {:error, :user_does_not_exist}
           end
-        #withdraw----------------------------
 
-        {:user_withdraw,id, amount} ->
-          user = CubDB.get(db_users,id)
+        # withdraw---------------------------- TODO cambiar sintaxis
+
+        {:user_withdraw, id, amount} ->
+          user = CubDB.get(db_users, id)
+
           if user == nil do
-            {:error,:user_does_not_exist}
+            {:error, :user_does_not_exist}
           else
             total = user.balance
+
             if total < amount do
-           {:error,:not_enough_money_to_withdraw}
+              {:error, :not_enough_money_to_withdraw}
             else
-            total = total - amount
-            user = Map.put(user,:balance,total)
-            CubDB.put(db_users,id,user)
+              total = total - amount
+              user = Map.put(user, :balance, total)
+              CubDB.put(db_users, id, user)
             end
           end
 
-
-        #clear----------------------------
-        :clear ->CubDB.clear(db_users)
-
+        # clear----------------------------
+        :clear ->
+          CubDB.clear(db_users)
       end
 
     {:reply, reply, db_users}
@@ -83,31 +87,28 @@ defmodule UserDatabase do
 
   @spec start_users(maybe_improper_list) :: :ignore | {:error, any} | {:ok, pid}
   def start_users(default) when is_list(default) do
-    GenServer.start_link(__MODULE__, default,name: UserDatabase)
+    GenServer.start_link(__MODULE__, default, name: UserDatabase)
   end
 
-
   @spec add_user(any, any) :: any
-  def add_user(id,name) do
-    GenServer.call(UserDatabase, {:add_user,id,name})
+  def add_user(id, name) do
+    GenServer.call(UserDatabase, {:add_user, id, name})
   end
 
   @spec user_deposit(any, any) :: any
-  def user_deposit(id,amount) do
-    GenServer.call(UserDatabase,{:user_deposit,id,amount})
+  def user_deposit(id, amount) do
+    GenServer.call(UserDatabase, {:user_deposit, id, amount})
   end
 
-  def user_withdraw(id,amount) do
-    GenServer.call(UserDatabase,{:user_withdraw,id,amount})
+  def user_withdraw(id, amount) do
+    GenServer.call(UserDatabase, {:user_withdraw, id, amount})
   end
 
-  def user_get(id)do
-    GenServer.call(UserDatabase,{:user_get,id})
+  def user_get(id) do
+    GenServer.call(UserDatabase, {:user_get, id})
   end
 
   def clear() do
-    GenServer.call(UserDatabase,:clear)
+    GenServer.call(UserDatabase, :clear)
   end
-
-
 end

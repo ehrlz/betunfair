@@ -80,4 +80,59 @@ defmodule LogicTest do
     {:ok, market} = Logic.market_get(state[:market])
     assert Map.get(market, :status) == {:settled, true}
   end
+
+  # BETS
+  test "back bet" do
+    {:ok, user_id} = Logic.user_create("00001111A", "Pepe Viyuela")
+    {:ok, market_id} = Logic.market_create("Nadal-Nole", "Prueba mercado")
+
+    {:ok, id} = Logic.bet_back(user_id, market_id, 100, 1.1)
+
+    assert Logic.bet_get(id) ==
+             {:ok,
+              %Bet{
+                bet_type: :back,
+                user_id: user_id,
+                market_id: market_id,
+                odds: 1.1,
+                original_stake: 100,
+                remaining_stake: 100,
+                matched_bets: [],
+                status: :active
+              }}
+  end
+
+  test "lay bet" do
+    {:ok, user_id} = Logic.user_create("00001111A", "Pepe Viyuela")
+    {:ok, market_id} = Logic.market_create("Nadal-Nole", "Prueba mercado")
+
+    {:ok, id} = Logic.bet_lay(user_id, market_id, 100, 1.1)
+
+    assert Logic.bet_get(id) ==
+             {:ok,
+              %Bet{
+                bet_type: :lay,
+                user_id: user_id,
+                market_id: market_id,
+                odds: 1.1,
+                original_stake: 100,
+                remaining_stake: 100,
+                matched_bets: [],
+                status: :active
+              }}
+  end
+
+  test "bet unk user" do
+    {:ok, market_id} = Logic.market_create("Madrid-Atleti", "Prueba mercado")
+
+    assert Logic.bet_lay("00001111A", market_id, 100, 1.1) == {:error, :user_not_found}
+    assert Logic.bet_back("00001111A", market_id, 100, 1.1) == {:error, :user_not_found}
+  end
+
+  test "bet unk market" do
+    {:ok, user_id} = Logic.user_create("00001111A", "Pepe Viyuela")
+
+    assert Logic.bet_lay(user_id, "asdasredqweasd", 100, 1.1) == {:error, :market_not_found}
+    assert Logic.bet_back(user_id, "asdasredqweasd", 100, 1.1) == {:error, :market_not_found}
+  end
 end

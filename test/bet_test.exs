@@ -1,4 +1,4 @@
-defmodule LogicTest do
+defmodule BetTest do
   use ExUnit.Case
   doctest Logic
 
