@@ -103,4 +103,21 @@ defmodule Logic do
   def bet_get(id) do
     BetDatabase.get_bet(id)
   end
+
+
+  # User
+
+  def start_users(_name) do
+    UserDatabase.start_users([])
+    {:ok}
+  end
+
+  @spec user_create(id :: String.t(), name :: String.t()) :: {:ok, binary}
+  def user_create(name,id) do
+    user_id = UUID.uuid1()
+    UserDatabase.add_user(id,name,user_id)
+    {:ok, user_id}
+  end
+
+
 end
