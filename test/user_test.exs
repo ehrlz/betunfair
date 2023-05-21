@@ -7,7 +7,12 @@ defmodule UserTest do
     :ok
   end
 
-  test "start" do
-    assert UserDatabase.add_user("eloy","001",1) == :ok
+  test "clear" do
+    UserDatabase.clear()
+  end
+
+  test "create_user" do
+    assert UserDatabase.add_user(1,"dani") == {:ok,1}
+    assert UserDatabase.add_user(1,"dani") == :error
   end
 end

@@ -113,10 +113,12 @@ defmodule Logic do
   end
 
   @spec user_create(id :: String.t(), name :: String.t()) :: {:ok, binary}
-  def user_create(name,id) do
-    user_id = UUID.uuid1()
-    UserDatabase.add_user(id,name,user_id)
-    {:ok, user_id}
+  def user_create(id,name) do
+    UserDatabase.add_user(id,name)
+  end
+
+  def user_deposit(id, amount) do
+    UserDatabase.user_deposit(id,amount)
   end
 
 

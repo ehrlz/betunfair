@@ -16,18 +16,44 @@ defmodule UserDatabase do
     reply =
       case op do
         #add_user----------------------------
-        {:add_user, id, name, user_id} ->
-          if CubDB.get(db_users,id) != {:error,:not_found} do
+        {:add_user,id, name} ->
+
+          if CubDB.get(db_users,id) == nil do
             new_user = %User{
-            user_id: user_id,
             name: name,
             id: id,
             }
           CubDB.put(db_users,id,new_user)
-
+          {:ok, id}
           else
-            {:error}
+            :error
           end
+        #deposit----------------------------
+
+        {:deposit,id, amount} ->
+          user = CubDB.get(db_users,id)
+          if user != nil do
+            total = user.balance + amount
+            user = Map.put(user,:balance,total)
+            CubDB.put(db_users,id,user)
+          else
+            :error
+          end
+        #withdraw----------------------------
+
+        # {:withdraw,id, amount} ->
+        #   user = CubDB.get(db_users,id)
+        #   if user == nil do
+        #     total = user.balance + amount
+        #     user = Map.put(user,:balance,total)
+        #     CubDB.put(db_users,id,user)
+        #   else
+        #     :error
+        #   end
+
+        #clear----------------------------
+        :clear ->CubDB.clear(db_users)
+
       end
 
     {:reply, reply, db_users}
@@ -46,8 +72,21 @@ defmodule UserDatabase do
   end
 
 
-  def add_user(id,name,user_id) do
-    GenServer.call(UserDatabase, {:add_user, id,name,user_id})
+  def add_user(id,name) do
+    GenServer.call(UserDatabase, {:add_user,id,name})
+  end
+
+  @spec user_deposit(any, any) :: any
+  def user_deposit(id,amount) do
+    GenServer.call(UserDatabase,{:user_deposit,id,amount})
+  end
+
+  def user_withdraw(id,amount) do
+    GenServer.call(UserDatabase,{:user_withdraw,id,amount})
+  end
+
+  def clear() do
+    GenServer.call(UserDatabase,:clear)
   end
 
 

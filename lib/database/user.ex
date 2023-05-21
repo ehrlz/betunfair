@@ -1,7 +1,5 @@
 defmodule User do
-  defstruct user_id: nil,
-            name: nil,
+  defstruct name: nil,
             id: nil,
-            balance: 0,
-            bets: []
+            balance: 0
 end
