@@ -17,16 +17,19 @@ defmodule UserDatabase do
       case op do
         # add_user----------------------------
         {:add_user, id, name} ->
-          if CubDB.get(db_users, id) == nil do
-            new_user = %User{
-              name: name,
-              id: id
-            }
+          case CubDB.get(db_users,id) do
+            nil ->
+              new_user = %User{
+                name: name,
+                id: id
+              }
 
-            CubDB.put(db_users, id, new_user)
-            {:ok, id}
-          else
-            {:error, :user_already_exists}
+              CubDB.put(db_users, id, new_user)
+              {:ok, id}
+
+            _user ->
+              {:error, :user_already_exists}
+
           end
 
         # get----------------------------
@@ -42,33 +45,30 @@ defmodule UserDatabase do
         # deposit---------------------------- TODO cambiar sintaxis
 
         {:user_deposit, id, amount} ->
-          user = CubDB.get(db_users, id)
-
-          if user != nil do
-            total = user.balance + amount
-            user = Map.put(user, :balance, total)
-            CubDB.put(db_users, id, user)
-          else
-            {:error, :user_does_not_exist}
-          end
-
+          case CubDB.get(db_users,id) do
+            nil ->
+              {:error, :user_not_found}
+            user ->
+              cond do
+                amount < 1  ->  {:error, :amount_not_positive}
+                true        ->  user = Map.put(user, :balance, user.balance + amount)
+                                CubDB.put(db_users, id, user)
+              end
+            end
         # withdraw---------------------------- TODO cambiar sintaxis
 
         {:user_withdraw, id, amount} ->
-          user = CubDB.get(db_users, id)
-
-          if user == nil do
-            {:error, :user_does_not_exist}
-          else
-            total = user.balance
-
-            if total < amount do
-              {:error, :not_enough_money_to_withdraw}
-            else
-              total = total - amount
-              user = Map.put(user, :balance, total)
-              CubDB.put(db_users, id, user)
-            end
+          case CubDB.get(db_users,id) do
+            nil ->
+              {:error, :user_not_found}
+            user ->
+              balance = user.balance
+              cond do
+                amount < 1            ->  {:error, :amount_not_positive}
+                balance < amount      ->  {:error, :not_enough_money_to_withdraw}
+                true                  ->  user = Map.put(user, :balance, balance - amount)
+                                          CubDB.put(db_users, id, user)
+              end
           end
 
         # clear----------------------------
