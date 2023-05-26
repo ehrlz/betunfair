@@ -42,6 +42,9 @@ defmodule MarketDatabase do
 
           CubDB.delete_multi(db_markets, entries)
           CubDB.stop(db_markets)
+
+        :stop ->
+          CubDB.stop(db_markets)
       end
 
     {:reply, reply, db_markets}
@@ -107,11 +110,12 @@ defmodule MarketDatabase do
   """
   @spec stop() :: :ok | {:error, :exchange_not_deployed}
   def stop() do
-    case GenServer.whereis(UserDatabase) do
+    case GenServer.whereis(MarketDatabase) do
       nil ->
         {:error, :exchange_not_deployed}
 
       pid ->
+        GenServer.call(MarketDatabase, :stop)
         GenServer.stop(pid)
         :ok
     end

@@ -1,4 +1,4 @@
-defmodule Logic do
+defmodule Betunfair do
   @moduledoc """
   Project from Universidad Politécnica de Madrid
   """
@@ -11,7 +11,7 @@ defmodule Logic do
     MarketDatabase.start_link([name])
     UserDatabase.start_link([name])
     BetDatabase.start_link([name])
-    {:ok}
+    {:ok, name}
   end
 
   @doc """
@@ -32,6 +32,7 @@ defmodule Logic do
     UserDatabase.clear(name)
     MarketDatabase.clear(name)
     BetDatabase.clear(name)
+    {:ok, name}
   end
 
   # MARKET
@@ -117,48 +118,56 @@ defmodule Logic do
   def market_pending_backs(market_id) do
     list =
       BetDatabase.list_bets_by_market(market_id)
-      |> Enum.filter(fn {_id, bet} -> bet.status == :active and bet.bet_type == :back end)
+      |> Enum.filter(fn bet ->
+        bet.status == :active and bet.type == :back and bet.stake != 0
+      end)
       |> Enum.sort({:asc, Bet})
-      |> Enum.map(fn {id, _bet} -> id end)
+      |> Enum.map(fn bet -> {bet.odds, bet.id} end)
 
     {:ok, list}
   end
 
   # TODO descending order
-  @spec market_pending_lays(binary) :: {:error, atom} | {:ok, Enumerable.t({integer(), binary()})}
+  @spec market_pending_lays(binary) :: {:error, atom} | {:ok, Enumerable.t(binary)}
   def market_pending_lays(market_id) do
     list =
       BetDatabase.list_bets_by_market(market_id)
-      |> Enum.filter(fn {_id, bet} -> bet.status == :active and bet.bet_type == :lay end)
+      |> Enum.filter(fn bet ->
+        bet.status == :active and bet.type == :lay and bet.stake != 0
+      end)
       |> Enum.sort({:desc, Bet})
-      |> Enum.map(fn {id, _bet} -> id end)
+      |> Enum.map(fn bet -> {bet.odds, bet.id} end)
 
     {:ok, list}
   end
 
-  # TODO
+  # order_book strcuture?
+  # TODO ENUMERABLE
+  @spec market_match(binary) :: :ok
   def market_match(market_id) do
     {:ok, pending_backs} = market_pending_backs(market_id)
     {:ok, pending_lays} = market_pending_lays(market_id)
 
     Enum.zip(pending_backs, pending_lays)
-    |> Enum.each(fn {b_id, l_id} ->
-      {:ok, b} = bet_get(b_id)
-      {:ok, l} = bet_get(l_id)
-
-      if b.odds <= l.odds do
-        potential_match({b_id, b}, {l_id, l})
+    |> Enum.each(fn {{b_odds, b_id}, {l_odds, l_id}} ->
+      if b_odds <= l_odds do
+        potential_match(b_id, l_id)
       end
     end)
+
+    :ok
   end
 
-  defp potential_match({b_id, back}, {l_id, lay}) do
+  defp potential_match(b_id, l_id) do
+    {:ok, back_bet} = bet_get(b_id)
+    {:ok, lay_bet} = bet_get(l_id)
+
     cond do
-      back.remaining_stake * back.odds - back.remaining_stake >= lay.remaining_stake ->
-        BetDatabase.consume_stake(b_id)
+      back_bet.stake * back_bet.odds - back_bet.stake >= lay_bet.stake ->
+        BetDatabase.consume_stake(b_id, lay_bet.stake)
 
       true ->
-        BetDatabase.consume_stake(l_id)
+        BetDatabase.consume_stake(l_id, back_bet.stake)
     end
   end
 
@@ -171,6 +180,7 @@ defmodule Logic do
 
   @spec bet_lay(binary(), binary(), integer(), integer()) :: {:ok, binary()} | {:error, atom()}
   def bet_lay(user_id, market_id, stake, odds) do
+    # stake represents money to cover from back
     bet_new(user_id, market_id, :lay, stake, odds)
   end
 
@@ -190,8 +200,18 @@ defmodule Logic do
                 {:error, :insufficient_balance}
 
               true ->
+                # lay stake represented from back view
+                stake_view =
+                  case type do
+                    :lay ->
+                      trunc(stake / ((odds - 100) / 100))
+
+                    :back ->
+                      stake
+                  end
+
                 UserDatabase.user_withdraw(user_id, stake)
-                BetDatabase.new_bet(user_id, market_id, type, stake, odds)
+                BetDatabase.new_bet(user_id, market_id, type, stake_view, odds)
             end
         end
     end
@@ -203,7 +223,16 @@ defmodule Logic do
     BetDatabase.bet_cancel(bet_id)
   end
 
-  @spec bet_get(binary) :: {:error, atom} | {:ok, map}
+  @spec bet_get(binary) ::
+          {:error, atom}
+          | {:ok,
+             %{
+               :bet_type => atom,
+               :id => binary,
+               :odds => integer,
+               :stake => integer,
+               :status => atom
+             }}
   def bet_get(id) do
     BetDatabase.bet_get(id)
   end

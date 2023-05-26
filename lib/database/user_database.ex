@@ -86,6 +86,10 @@ defmodule UserDatabase do
         :clear ->
           CubDB.clear(db_users)
           CubDB.stop(db_users)
+
+        # stop----------------------------
+        :stop ->
+          CubDB.stop(db_users)
       end
 
     {:reply, reply, db_users}
@@ -148,6 +152,7 @@ defmodule UserDatabase do
         {:error, :exchange_not_deployed}
 
       pid ->
+        GenServer.call(UserDatabase, :stop)
         GenServer.stop(pid)
         :ok
     end
