@@ -166,4 +166,21 @@ defmodule LogicTest do
     {:ok, list} = Logic.market_pending_lays(market_id)
     assert list == [bet_id4, bet_id1, bet_id6, bet_id2, bet_id3, bet_id5]
   end
+
+  test "market pending lays sorted same odds" do
+    {:ok, market_id} = Logic.market_create("Madrid-Olympiakos", "Prueba")
+    {:ok, user_id} = Logic.user_create(1, "Pepe")
+
+    assert Logic.user_deposit(user_id, 1000) == :ok
+
+    {:ok, bet_id1} = Logic.bet_lay(user_id, market_id, 100, 5)
+    {:ok, bet_id2} = Logic.bet_lay(user_id, market_id, 200, 2.2)
+    {:ok, bet_id3} = Logic.bet_lay(user_id, market_id, 50, 1.5)
+    {:ok, bet_id4} = Logic.bet_lay(user_id, market_id, 2, 5)
+    {:ok, bet_id5} = Logic.bet_lay(user_id, market_id, 2, 5)
+    {:ok, bet_id6} = Logic.bet_lay(user_id, market_id, 2, 6)
+
+    {:ok, list} = Logic.market_pending_lays(market_id)
+    assert list == [bet_id6, bet_id1, bet_id4, bet_id5, bet_id2, bet_id3]
+  end
 end

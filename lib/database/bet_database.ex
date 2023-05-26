@@ -81,7 +81,8 @@ defmodule BetDatabase do
       market_id: market_id,
       original_stake: stake,
       remaining_stake: stake,
-      odds: odds
+      odds: odds,
+      date: DateTime.utc_now()
     }
 
     GenServer.call(BetDatabase, {:new_bet, new_bet})
@@ -107,6 +108,10 @@ defmodule BetDatabase do
 
   def list_bets_by_user(user_id) do
     GenServer.call(BetDatabase, {:list_by_user, user_id})
+  end
+
+  def consume_stake(bet_id) do
+    GenServer.call(BetDatabase, {:consume_stake, bet_id})
   end
 
   @doc """

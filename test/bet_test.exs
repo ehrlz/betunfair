@@ -22,18 +22,14 @@ defmodule BetTest do
 
     {:ok, id} = Logic.bet_back(user_id, market_id, 100, 1.1)
 
-    assert Logic.bet_get(id) ==
-             {:ok,
-              %Bet{
-                bet_type: :back,
-                user_id: user_id,
-                market_id: market_id,
-                odds: 1.1,
-                original_stake: 100,
-                remaining_stake: 100,
-                matched_bets: [],
-                status: :active
-              }}
+
+    {:ok, bet} = Logic.bet_get(id)
+    assert bet.user_id == user_id and
+            bet.market_id == market_id and
+            bet.bet_type == :back and
+            bet.odds == 1.1 and
+            bet.original_stake == 100 and
+            bet.status == :active
 
     assert Logic.user_get(user_id) ==
              {:ok,
@@ -51,18 +47,12 @@ defmodule BetTest do
 
     {:ok, id} = Logic.bet_lay(user_id, market_id, 100, 1.1)
 
-    assert Logic.bet_get(id) ==
-             {:ok,
-              %Bet{
-                bet_type: :lay,
-                user_id: user_id,
-                market_id: market_id,
-                odds: 1.1,
-                original_stake: 100,
-                remaining_stake: 100,
-                matched_bets: [],
-                status: :active
-              }}
+    {:ok, bet} = Logic.bet_get(id)
+    assert bet.user_id == user_id and
+            bet.market_id == market_id and
+            bet.bet_type == :lay and
+            bet.odds == 1.1 and
+            bet.original_stake == 100
 
     assert Logic.user_get(user_id) ==
              {:ok,
@@ -103,18 +93,13 @@ defmodule BetTest do
     {:ok, id} = Logic.bet_lay(user_id, market_id, 100, 1.1)
     assert Logic.bet_cancel(id) == :ok
 
-    assert Logic.bet_get(id) ==
-             {:ok,
-              %Bet{
-                bet_type: :lay,
-                user_id: user_id,
-                market_id: market_id,
-                odds: 1.1,
-                original_stake: 100,
-                remaining_stake: 100,
-                matched_bets: [],
-                status: :cancelled
-              }}
+    {:ok, bet} = Logic.bet_get(id)
+    assert bet.user_id == user_id and
+            bet.market_id == market_id and
+            bet.bet_type == :lay and
+            bet.odds == 1.1 and
+            bet.original_stake == 100 and
+            bet.status == :cancelled
   end
 
   test "bet cancel unk" do

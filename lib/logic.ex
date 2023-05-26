@@ -119,7 +119,8 @@ defmodule Logic do
       BetDatabase.list_bets_by_market(market_id)
       |> Enum.filter(fn {_id, bet} -> bet.status == :active and bet.bet_type == :back end)
       |> Enum.sort({:asc, Bet})
-      |> Enum.map(fn {id, _bet}-> id end)
+      |> Enum.map(fn {id, _bet} -> id end)
+
     {:ok, list}
   end
 
@@ -130,13 +131,35 @@ defmodule Logic do
       BetDatabase.list_bets_by_market(market_id)
       |> Enum.filter(fn {_id, bet} -> bet.status == :active and bet.bet_type == :lay end)
       |> Enum.sort({:desc, Bet})
-      |> Enum.map(fn {id, _bet}-> id end)
+      |> Enum.map(fn {id, _bet} -> id end)
 
     {:ok, list}
   end
 
   # TODO
   def market_match(market_id) do
+    {:ok, pending_backs} = market_pending_backs(market_id)
+    {:ok, pending_lays} = market_pending_lays(market_id)
+
+    Enum.zip(pending_backs, pending_lays)
+    |> Enum.each(fn {b_id, l_id} ->
+      {:ok, b} = bet_get(b_id)
+      {:ok, l} = bet_get(l_id)
+
+      if b.odds <= l.odds do
+        potential_match({b_id, b}, {l_id, l})
+      end
+    end)
+  end
+
+  defp potential_match({b_id, back}, {l_id, lay}) do
+    cond do
+      back.remaining_stake * back.odds - back.remaining_stake >= lay.remaining_stake ->
+        BetDatabase.consume_stake(b_id)
+
+      true ->
+        BetDatabase.consume_stake(l_id)
+    end
   end
 
   # BET
