@@ -102,7 +102,7 @@ defmodule Logic do
   def market_get(id) do
     MarketDatabase.get_market(id)
   end
-
+  # TODO comprobar lo que devuelve en caso de error ( {:ok, :error}? )
   @spec market_bets(binary) :: {:ok, [binary()]}
   def market_bets(market_id) do
     list = BetDatabase.list_bets_by_market(market_id)
@@ -185,7 +185,6 @@ defmodule Logic do
     UserDatabase.add_user(id, name)
   end
 
-  # TODO amount negative
   @spec user_deposit(binary(), integer()) :: {:error, atom} | :ok
   def user_deposit(id, amount) do
     UserDatabase.user_deposit(id, amount)
@@ -196,7 +195,9 @@ defmodule Logic do
     UserDatabase.user_get(id)
   end
 
-  # TODO
-  def user_bets(market_id) do
+  @spec user_bets(any) :: {:ok, [binary()]}
+  def user_bets(user_id) do
+   list =  BetDatabase.list_bets_by_user(user_id)
+   {:ok,list}
   end
 end
