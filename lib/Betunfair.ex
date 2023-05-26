@@ -112,14 +112,14 @@ defmodule Betunfair do
     {:ok, list}
   end
 
-  # TODO ascending order
+  # TODO ENUMERABLE
   @spec market_pending_backs(binary) ::
-          {:error, atom} | {:ok, Enumerable.t({integer(), binary()})}
+          {:error, atom} | {:ok, Enumerable.t({integer(), Enumerable.t(binary)})}
   def market_pending_backs(market_id) do
     list =
       BetDatabase.list_bets_by_market(market_id)
       |> Enum.filter(fn bet ->
-        bet.status == :active and bet.type == :back and bet.stake != 0
+        bet.status == :active and bet.type == :back
       end)
       |> Enum.sort({:asc, Bet})
       |> Enum.map(fn bet -> {bet.odds, bet.id} end)
@@ -127,13 +127,13 @@ defmodule Betunfair do
     {:ok, list}
   end
 
-  # TODO descending order
+  # TODO ENUMERABLE
   @spec market_pending_lays(binary) :: {:error, atom} | {:ok, Enumerable.t(binary)}
   def market_pending_lays(market_id) do
     list =
       BetDatabase.list_bets_by_market(market_id)
       |> Enum.filter(fn bet ->
-        bet.status == :active and bet.type == :lay and bet.stake != 0
+        bet.status == :active and bet.type == :lay
       end)
       |> Enum.sort({:desc, Bet})
       |> Enum.map(fn bet -> {bet.odds, bet.id} end)
@@ -141,33 +141,60 @@ defmodule Betunfair do
     {:ok, list}
   end
 
-  # order_book strcuture?
-  # TODO ENUMERABLE
   @spec market_match(binary) :: :ok
   def market_match(market_id) do
     {:ok, pending_backs} = market_pending_backs(market_id)
     {:ok, pending_lays} = market_pending_lays(market_id)
 
-    Enum.zip(pending_backs, pending_lays)
-    |> Enum.each(fn {{b_odds, b_id}, {l_odds, l_id}} ->
-      if b_odds <= l_odds do
-        potential_match(b_id, l_id)
-      end
-    end)
-
+    iterate_order_books(pending_backs, pending_lays)
     :ok
   end
 
-  defp potential_match(b_id, l_id) do
-    {:ok, back_bet} = bet_get(b_id)
-    {:ok, lay_bet} = bet_get(l_id)
+  defp iterate_order_books(backs, lays) do
+    IO.inspect(backs)
+    [{b_odds, b_id} | _] = backs
 
-    cond do
-      back_bet.stake * back_bet.odds - back_bet.stake >= lay_bet.stake ->
-        BetDatabase.consume_stake(b_id, lay_bet.stake)
+    [{l_odds, l_id} | _] = lays
 
-      true ->
-        BetDatabase.consume_stake(l_id, back_bet.stake)
+    # potential match
+    if b_odds <= l_odds do
+      {:ok, back_bet} = bet_get(b_id)
+      {:ok, lay_bet} = bet_get(l_id)
+
+      consume_value =
+        cond do
+          back_bet.stake * back_bet.odds - back_bet.stake >= lay_bet.stake ->
+            lay_bet.stake
+
+          true ->
+            back_bet.stake
+        end
+
+      BetDatabase.consume_stake(b_id, consume_value)
+      BetDatabase.consume_stake(l_id, consume_value)
+
+      # removes empty
+      new_backs =
+        cond do
+          back_bet.stake == consume_value ->
+            [_h | t] = backs
+            t
+
+          true ->
+            backs
+        end
+
+      new_lays =
+        cond do
+          lay_bet.stake == consume_value ->
+            [_h | t] = lays
+            t
+
+          true ->
+            lays
+        end
+
+      iterate_order_books(new_backs, new_lays)
     end
   end
 
