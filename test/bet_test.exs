@@ -3,7 +3,6 @@ defmodule BetTest do
   doctest Logic
 
   setup_all do
-
     :ok
   end
 

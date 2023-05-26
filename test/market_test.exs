@@ -127,4 +127,43 @@ defmodule LogicTest do
     # 3, 6 and 7
     assert length(list) == 3
   end
+
+  test "market pending backs sorted" do
+    {:ok, market_id} = Logic.market_create("Madrid-Olympiakos", "Prueba")
+    {:ok, user_id} = Logic.user_create(1, "Pepe")
+    assert Logic.user_deposit(user_id, 1000) == :ok
+
+    {:ok, bet_id1} = Logic.bet_back(user_id, market_id, 100, 5)
+    {:ok, bet_id2} = Logic.bet_back(user_id, market_id, 200, 2.2)
+    {:ok, bet_id3} = Logic.bet_back(user_id, market_id, 50, 1.5)
+    {:ok, bet_id4} = Logic.bet_back(user_id, market_id, 2, 10)
+    {:ok, bet_id5} = Logic.bet_back(user_id, market_id, 2, 1.3)
+    {:ok, bet_id6} = Logic.bet_back(user_id, market_id, 2, 4)
+
+    {:ok, _bet_id7} = Logic.bet_lay(user_id, market_id, 2, 4)
+    {:ok, _bet_id8} = Logic.bet_lay(user_id, market_id, 2, 5)
+
+    {:ok, list} = Logic.market_pending_backs(market_id)
+    assert list == [bet_id5, bet_id3, bet_id2, bet_id6, bet_id1, bet_id4]
+  end
+
+  test "market pending lays sorted" do
+    {:ok, market_id} = Logic.market_create("Madrid-Olympiakos", "Prueba")
+    {:ok, user_id} = Logic.user_create(1, "Pepe")
+
+    assert Logic.user_deposit(user_id, 1000) == :ok
+
+    {:ok, bet_id1} = Logic.bet_lay(user_id, market_id, 100, 5)
+    {:ok, bet_id2} = Logic.bet_lay(user_id, market_id, 200, 2.2)
+    {:ok, bet_id3} = Logic.bet_lay(user_id, market_id, 50, 1.5)
+    {:ok, bet_id4} = Logic.bet_lay(user_id, market_id, 2, 10)
+    {:ok, bet_id5} = Logic.bet_lay(user_id, market_id, 2, 1.3)
+    {:ok, bet_id6} = Logic.bet_lay(user_id, market_id, 2, 4)
+
+    {:ok, _bet_id7} = Logic.bet_back(user_id, market_id, 2, 4)
+    {:ok, _bet_id8} = Logic.bet_back(user_id, market_id, 2, 5)
+
+    {:ok, list} = Logic.market_pending_lays(market_id)
+    assert list == [bet_id4, bet_id1, bet_id6, bet_id2, bet_id3, bet_id5]
+  end
 end

@@ -102,6 +102,7 @@ defmodule Logic do
   def market_get(id) do
     MarketDatabase.get_market(id)
   end
+
   # TODO comprobar lo que devuelve en caso de error ( {:ok, :error}? )
   @spec market_bets(binary) :: {:ok, [binary()]}
   def market_bets(market_id) do
@@ -110,21 +111,26 @@ defmodule Logic do
     {:ok, list}
   end
 
+  # TODO ascending order
   @spec market_pending_backs(binary) ::
           {:error, atom} | {:ok, Enumerable.t({integer(), binary()})}
   def market_pending_backs(market_id) do
     list =
       BetDatabase.list_bets_by_market(market_id)
       |> Enum.filter(fn {_id, bet} -> bet.status == :active and bet.bet_type == :back end)
-
+      |> Enum.sort({:asc, Bet})
+      |> Enum.map(fn {id, _bet}-> id end)
     {:ok, list}
   end
 
+  # TODO descending order
   @spec market_pending_lays(binary) :: {:error, atom} | {:ok, Enumerable.t({integer(), binary()})}
   def market_pending_lays(market_id) do
     list =
       BetDatabase.list_bets_by_market(market_id)
       |> Enum.filter(fn {_id, bet} -> bet.status == :active and bet.bet_type == :lay end)
+      |> Enum.sort({:desc, Bet})
+      |> Enum.map(fn {id, _bet}-> id end)
 
     {:ok, list}
   end
@@ -197,7 +203,7 @@ defmodule Logic do
 
   @spec user_bets(any) :: {:ok, [binary()]}
   def user_bets(user_id) do
-   list =  BetDatabase.list_bets_by_user(user_id)
-   {:ok,list}
+    list = BetDatabase.list_bets_by_user(user_id)
+    {:ok, list}
   end
 end

@@ -29,6 +29,5 @@ defmodule UserTest do
     assert UserDatabase.user_get(2) == {:error, :user_not_found}
     assert UserDatabase.user_deposit(1, 10) == :ok
     assert UserDatabase.user_get(1) == {:ok, %User{name: "dani", id: 1, balance: 10}}
-
   end
 end
