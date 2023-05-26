@@ -10,6 +10,19 @@ defmodule Bet do
             status: :active,
             date: nil
 
+  @type t() :: %Bet{
+          id: binary(),
+          type: atom(),
+          user_id: binary(),
+          market_id: binary(),
+          odds: integer(),
+          original_stake: integer(),
+          stake: integer(),
+          matched_bets: list(Bet),
+          status: atom(),
+          date: Date.t()
+        }
+
   @doc """
   Orders bets for its odds. Calificates bet1 to bet2.
   """

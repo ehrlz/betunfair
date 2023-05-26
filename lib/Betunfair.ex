@@ -83,7 +83,7 @@ defmodule Betunfair do
     market_set_status(id, :frozen)
   end
 
-  # TODO settle each bet in market
+  #TODO (matched_bets in bet)
   @spec market_settle(binary(), boolean()) :: :ok | {:error, atom}
   def market_settle(id, result) do
     market_set_status(id, {:settled, result})
@@ -95,6 +95,12 @@ defmodule Betunfair do
         {:error, :market_not_found}
 
       {:ok, market} ->
+        # set all bets in market
+        BetDatabase.list_bets_by_market(id)
+        |> Enum.each(fn bet ->
+          BetDatabase.bet_set_status(bet.id, status)
+        end)
+
         MarketDatabase.put_market(id, market.name, market.description, status)
     end
   end
@@ -152,31 +158,43 @@ defmodule Betunfair do
 
   defp iterate_order_books(backs, lays) do
     IO.inspect(backs)
+    IO.inspect(lays)
     [{b_odds, b_id} | _] = backs
 
     [{l_odds, l_id} | _] = lays
 
     # potential match
     if b_odds <= l_odds do
-      {:ok, back_bet} = bet_get(b_id)
-      {:ok, lay_bet} = bet_get(l_id)
+      back_bet = BetDatabase.bet_get(b_id)
+      lay_bet = BetDatabase.bet_get(l_id)
 
-      consume_value =
-        cond do
-          back_bet.stake * back_bet.odds - back_bet.stake >= lay_bet.stake ->
-            lay_bet.stake
+      IO.inspect(BetDatabase.bet_get(b_id))
+      IO.inspect(BetDatabase.bet_get(l_id))
+      # back vision from lay stake
+      real_lay_stake = trunc(lay_bet.stake / ((lay_bet.odds - 100) / 100))
 
-          true ->
-            back_bet.stake
-        end
+      IO.inspect(trunc(back_bet.stake * (back_bet.odds / 100)) - back_bet.stake)
+      IO.inspect(real_lay_stake)
 
-      BetDatabase.consume_stake(b_id, consume_value)
-      BetDatabase.consume_stake(l_id, consume_value)
+      cond do
+        trunc(back_bet.stake * (back_bet.odds / 100)) - back_bet.stake >= real_lay_stake ->
+          BetDatabase.consume_stake(b_id, real_lay_stake)
+          BetDatabase.consume_stake(l_id, lay_bet.stake)
+
+        true ->
+          BetDatabase.consume_stake(b_id, back_bet.stake)
+          BetDatabase.consume_stake(l_id, trunc(back_bet.stake * ((lay_bet.odds - 100) / 100)))
+      end
+
+      back_bet = BetDatabase.bet_get(b_id)
+      lay_bet = BetDatabase.bet_get(l_id)
+      IO.inspect(BetDatabase.bet_get(b_id))
+      IO.inspect(BetDatabase.bet_get(l_id))
 
       # removes empty
       new_backs =
         cond do
-          back_bet.stake == consume_value ->
+          back_bet.stake == 0 ->
             [_h | t] = backs
             t
 
@@ -186,7 +204,7 @@ defmodule Betunfair do
 
       new_lays =
         cond do
-          lay_bet.stake == consume_value ->
+          lay_bet.stake == 0 ->
             [_h | t] = lays
             t
 
@@ -227,18 +245,9 @@ defmodule Betunfair do
                 {:error, :insufficient_balance}
 
               true ->
-                # lay stake represented from back view
-                stake_view =
-                  case type do
-                    :lay ->
-                      trunc(stake / ((odds - 100) / 100))
-
-                    :back ->
-                      stake
-                  end
-
                 UserDatabase.user_withdraw(user_id, stake)
-                BetDatabase.new_bet(user_id, market_id, type, stake_view, odds)
+                id = BetDatabase.new_bet(user_id, market_id, type, stake, odds)
+                {:ok, id}
             end
         end
     end
@@ -247,21 +256,37 @@ defmodule Betunfair do
   # TODO match funcionality
   @spec bet_cancel(binary()) :: :ok | {:error, atom()}
   def bet_cancel(bet_id) do
-    BetDatabase.bet_cancel(bet_id)
+    bet = BetDatabase.bet_get(bet_id)
+
+    case bet do
+      nil ->
+        {:error, :bet_not_found}
+
+      bet ->
+        UserDatabase.user_deposit(bet.user_id, bet.original_stake)
+        BetDatabase.bet_set_status(bet_id, :cancelled)
+    end
   end
 
   @spec bet_get(binary) ::
           {:error, atom}
           | {:ok,
              %{
-               :bet_type => atom,
                :id => binary,
+               :bet_type => atom,
                :odds => integer,
                :stake => integer,
                :status => atom
              }}
   def bet_get(id) do
-    BetDatabase.bet_get(id)
+    case BetDatabase.bet_get(id) do
+      nil ->
+        {:error, :bet_not_found}
+
+      bet ->
+        {:ok,
+         %{id: bet.id, bet_type: bet.type, stake: bet.stake, odds: bet.odds, status: bet.status}}
+    end
   end
 
   # User

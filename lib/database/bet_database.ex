@@ -15,32 +15,25 @@ defmodule BetDatabase do
   def handle_call(op, _from, bet_db) do
     reply =
       case op do
-        {:new_bet, bet} ->
+        {:new, bet} ->
           CubDB.put(bet_db, bet.id, bet)
-          {:ok, bet.id}
+          bet.id
 
         # TODO cancelled market?
-        {:bet_cancel, bet_id} ->
+        {:set_status, bet_id, status} ->
           case CubDB.get(bet_db, bet_id) do
             nil ->
               {:error, :bet_not_found}
 
             bet ->
-              canc_bet = Map.put(bet, :status, :cancelled)
+              canc_bet = Map.put(bet, :status, status)
               CubDB.put(bet_db, bet_id, canc_bet)
-              :ok
           end
 
-        {:bet_get, bet_id} ->
-          case CubDB.get(bet_db, bet_id) do
-            nil ->
-              {:error, :bet_not_found}
+        {:get, bet_id} ->
+          CubDB.get(bet_db, bet_id)
 
-            bet ->
-              {:ok, bet}
-          end
-
-        {:list_bets, market_id} ->
+        {:list, market_id} ->
           CubDB.select(bet_db)
           |> Enum.filter(fn {_id, bet} -> bet.market_id == market_id end)
 
@@ -80,7 +73,7 @@ defmodule BetDatabase do
   end
 
   @spec new_bet(binary(), binary(), atom(), integer(), integer()) ::
-          {:ok, binary()} | {:error, atom()}
+          {:ok, binary()}
   def new_bet(user_id, market_id, type, stake, odds) do
     new_bet = %Bet{
       id: UUID.uuid1(),
@@ -93,31 +86,22 @@ defmodule BetDatabase do
       date: DateTime.utc_now()
     }
 
-    GenServer.call(BetDatabase, {:new_bet, new_bet})
+    GenServer.call(BetDatabase, {:new, new_bet})
   end
 
-  @spec bet_cancel(binary()) :: :ok | {:error, atom()}
-  def bet_cancel(bet_id) do
-    GenServer.call(BetDatabase, {:bet_cancel, bet_id})
+  @spec bet_set_status(binary(), atom() | {atom(), boolean()}) :: :ok | {:error, atom()}
+  def bet_set_status(bet_id, status) do
+    GenServer.call(BetDatabase, {:set_status, bet_id, status})
   end
 
-  @spec bet_get(binary()) :: {:ok, map()} | {:error, atom()}
+  @spec bet_get(binary()) :: Bet.t() | nil
   def bet_get(bet_id) do
-    {:ok, bet} = GenServer.call(BetDatabase, {:bet_get, bet_id})
-
-    {:ok,
-     %{
-       id: bet_id,
-       bet_type: bet.type,
-       stake: bet.stake,
-       odds: bet.odds,
-       status: bet.status
-     }}
+    GenServer.call(BetDatabase, {:get, bet_id})
   end
 
   @spec list_bets(binary) :: [Bet.t()]
   def list_bets(market_id) do
-    GenServer.call(BetDatabase, {:list_bets, market_id})
+    GenServer.call(BetDatabase, {:list, market_id})
   end
 
   @spec list_bets_by_market(binary) :: [Bet.t()]
