@@ -17,7 +17,7 @@ defmodule UserDatabase do
       case op do
         # add_user----------------------------
         {:add_user, id, name} ->
-          case CubDB.get(db_users,id) do
+          case CubDB.get(db_users, id) do
             nil ->
               new_user = %User{
                 name: name,
@@ -29,7 +29,6 @@ defmodule UserDatabase do
 
             _user ->
               {:error, :user_already_exists}
-
           end
 
         # get----------------------------
@@ -45,35 +44,51 @@ defmodule UserDatabase do
         # deposit---------------------------- TODO cambiar sintaxis
 
         {:user_deposit, id, amount} ->
-          case CubDB.get(db_users,id) do
+          case CubDB.get(db_users, id) do
             nil ->
               {:error, :user_not_found}
+
             user ->
               cond do
-                amount < 1  ->  {:error, :amount_not_positive}
-                true        ->  user = Map.put(user, :balance, user.balance + amount)
-                                CubDB.put(db_users, id, user)
+                amount < 1 ->
+                  {:error, :amount_not_positive}
+
+                true ->
+                  user = Map.put(user, :balance, user.balance + amount)
+                  CubDB.put(db_users, id, user)
               end
-            end
+          end
+
         # withdraw---------------------------- TODO cambiar sintaxis
 
         {:user_withdraw, id, amount} ->
-          case CubDB.get(db_users,id) do
+          case CubDB.get(db_users, id) do
             nil ->
               {:error, :user_not_found}
+
             user ->
               balance = user.balance
+
               cond do
-                amount < 1            ->  {:error, :amount_not_positive}
-                balance < amount      ->  {:error, :not_enough_money_to_withdraw}
-                true                  ->  user = Map.put(user, :balance, balance - amount)
-                                          CubDB.put(db_users, id, user)
+                amount < 1 ->
+                  {:error, :amount_not_positive}
+
+                balance < amount ->
+                  {:error, :not_enough_money_to_withdraw}
+
+                true ->
+                  user = Map.put(user, :balance, balance - amount)
+                  CubDB.put(db_users, id, user)
               end
           end
 
         # clear----------------------------
         :clear ->
           CubDB.clear(db_users)
+          CubDB.stop(db_users)
+
+        # stop----------------------------
+        :stop ->
           CubDB.stop(db_users)
       end
 
@@ -137,6 +152,7 @@ defmodule UserDatabase do
         {:error, :exchange_not_deployed}
 
       pid ->
+        GenServer.call(UserDatabase, :stop)
         GenServer.stop(pid)
         :ok
     end

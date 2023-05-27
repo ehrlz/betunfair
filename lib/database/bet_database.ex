@@ -15,46 +15,56 @@ defmodule BetDatabase do
   def handle_call(op, _from, bet_db) do
     reply =
       case op do
-        {:new_bet, bet} ->
-          bet_id = UUID.uuid1()
-          CubDB.put(bet_db, bet_id, bet)
-          {:ok, bet_id}
+        {:new, bet} ->
+          CubDB.put(bet_db, bet.id, bet)
+          bet.id
 
         # TODO cancelled market?
-        {:bet_cancel, bet_id} ->
+        {:set_status, bet_id, status} ->
           case CubDB.get(bet_db, bet_id) do
             nil ->
               {:error, :bet_not_found}
 
             bet ->
-              canc_bet = Map.put(bet, :status, :cancelled)
+              canc_bet = Map.put(bet, :status, status)
               CubDB.put(bet_db, bet_id, canc_bet)
-              :ok
           end
 
-        {:bet_get, bet_id} ->
-          case CubDB.get(bet_db, bet_id) do
+        {:get, bet_id} ->
+          CubDB.get(bet_db, bet_id)
+
+        {:list, market_id} ->
+          CubDB.select(bet_db)
+          |> Enum.map(fn {_id, bet} -> bet end)
+          |> Enum.filter(fn bet -> bet.market_id == market_id end)
+
+        {:list_by_market, market_id, status} ->
+          list_bets = CubDB.select(bet_db)
+          |> Enum.map(fn {_id, bet} -> bet end)
+          |> Enum.filter(fn bet -> bet.market_id == market_id end)
+
+          case status do
             nil ->
-              {:error, :bet_not_found}
-
-            bet ->
-              {:ok, bet}
+              list_bets
+            status ->
+              Enum.filter(list_bets, fn bet -> bet.status == status end)
           end
-
-        {:list_bets, market_id} ->
-          CubDB.select(bet_db)
-          |> Enum.filter(fn {_id, bet} -> bet.market_id == market_id end)
-
-        {:list_by_market, market_id} ->
-          CubDB.select(bet_db)
-          |> Enum.filter(fn {_id, bet} -> bet.market_id == market_id end)
 
         {:list_by_user, user_id} ->
           CubDB.select(bet_db)
-          |> Enum.filter(fn {_id, bet} -> bet.user_id == user_id end)
+          |> Enum.map(fn {_id, bet} -> bet end)
+          |> Enum.filter(fn bet -> bet.user_id == user_id end)
+
+        {:consume_stake, bet_id, value} ->
+          bet = CubDB.get(bet_db, bet_id)
+          new_bet = Map.put(bet, :stake, bet.stake - value)
+          CubDB.put(bet_db, bet_id, new_bet)
 
         :clear ->
           CubDB.clear(bet_db)
+          CubDB.stop(bet_db)
+
+        :stop ->
           CubDB.stop(bet_db)
       end
 
@@ -73,40 +83,50 @@ defmodule BetDatabase do
   end
 
   @spec new_bet(binary(), binary(), atom(), integer(), integer()) ::
-          {:ok, binary()} | {:error, atom()}
+          {:ok, binary()}
   def new_bet(user_id, market_id, type, stake, odds) do
     new_bet = %Bet{
-      bet_type: type,
+      id: UUID.uuid1(),
+      type: type,
       user_id: user_id,
       market_id: market_id,
       original_stake: stake,
-      remaining_stake: stake,
-      odds: odds
+      stake: stake,
+      odds: odds,
+      date: DateTime.utc_now()
     }
 
-    GenServer.call(BetDatabase, {:new_bet, new_bet})
+    GenServer.call(BetDatabase, {:new, new_bet})
   end
 
-  @spec bet_cancel(binary()) :: :ok | {:error, atom()}
-  def bet_cancel(bet_id) do
-    GenServer.call(BetDatabase, {:bet_cancel, bet_id})
+  @spec bet_set_status(binary(), atom() | {atom(), boolean()}) :: :ok | {:error, atom()}
+  def bet_set_status(bet_id, status) do
+    GenServer.call(BetDatabase, {:set_status, bet_id, status})
   end
 
-  @spec bet_get(binary()) :: {:ok, map()} | {:error, atom()}
+  @spec bet_get(binary()) :: Bet.t() | nil
   def bet_get(bet_id) do
-    GenServer.call(BetDatabase, {:bet_get, bet_id})
+    GenServer.call(BetDatabase, {:get, bet_id})
   end
 
+  @spec list_bets(binary) :: [Bet.t()]
   def list_bets(market_id) do
-    GenServer.call(BetDatabase, {:list_bets, market_id})
+    GenServer.call(BetDatabase, {:list, market_id})
   end
 
-  def list_bets_by_market(market_id) do
-    GenServer.call(BetDatabase, {:list_by_market, market_id})
+  @spec list_bets_by_market(binary, atom) :: [Bet.t()]
+  def list_bets_by_market(market_id, status \\ nil) do
+    GenServer.call(BetDatabase, {:list_by_market, market_id, status})
   end
 
+  @spec list_bets_by_user(binary) :: [Bet.t()]
   def list_bets_by_user(user_id) do
     GenServer.call(BetDatabase, {:list_by_user, user_id})
+  end
+
+  @spec consume_stake(binary, integer) :: :ok
+  def consume_stake(bet_id, value) do
+    GenServer.call(BetDatabase, {:consume_stake, bet_id, value})
   end
 
   @doc """
@@ -131,11 +151,12 @@ defmodule BetDatabase do
   Stops server process
   """
   def stop() do
-    case GenServer.whereis(MarketDatabase) do
+    case GenServer.whereis(BetDatabase) do
       nil ->
         {:error, :exchange_not_deployed}
 
       pid ->
+        GenServer.call(BetDatabase, :stop)
         GenServer.stop(pid)
         :ok
     end

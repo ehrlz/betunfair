@@ -16,10 +16,7 @@ defmodule MarketDatabase do
     reply =
       case op do
         {:get, market_id} ->
-          case CubDB.get(db_markets, market_id) do
-            nil -> {:error, :not_found}
-            value -> {:ok, value}
-          end
+          CubDB.get(db_markets, market_id)
 
         :list ->
           list =
@@ -42,6 +39,9 @@ defmodule MarketDatabase do
 
           CubDB.delete_multi(db_markets, entries)
           CubDB.stop(db_markets)
+
+        :stop ->
+          CubDB.stop(db_markets)
       end
 
     {:reply, reply, db_markets}
@@ -59,7 +59,7 @@ defmodule MarketDatabase do
     GenServer.start_link(__MODULE__, default, name: MarketDatabase)
   end
 
-  @spec get_market(binary()) :: {:ok, map()} | {:error, atom()}
+  @spec get_market(binary()) :: Market.t() | nil
   def get_market(market_id) do
     GenServer.call(MarketDatabase, {:get, market_id})
   end
@@ -107,11 +107,12 @@ defmodule MarketDatabase do
   """
   @spec stop() :: :ok | {:error, :exchange_not_deployed}
   def stop() do
-    case GenServer.whereis(UserDatabase) do
+    case GenServer.whereis(MarketDatabase) do
       nil ->
         {:error, :exchange_not_deployed}
 
       pid ->
+        GenServer.call(MarketDatabase, :stop)
         GenServer.stop(pid)
         :ok
     end
