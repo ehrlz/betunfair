@@ -100,9 +100,9 @@ defmodule Betunfair do
     market_set_status(id, {:settled, result})
 
     # all unmatched bet' stake return to user
-    BetDatabase.list_bets_by_market(id)
+    BetDatabase.list_bets_by_market(id, :active)
     |> Enum.each(fn bet ->
-      IO.inspect(bet.stake, label: "UNMATCHED #{bet.type}")
+      #IO.inspect(bet.stake, label: "UNMATCHED #{bet.type}")
       UserDatabase.user_deposit(bet.user_id, bet.stake)
     end)
 
@@ -120,19 +120,19 @@ defmodule Betunfair do
     |> Enum.each(fn {bet_id, stake} ->
       bet = BetDatabase.bet_get(bet_id)
       real_odds = bet.odds / 100
-      IO.inspect(real_odds, label: "MATCHED odds #{bet.type}")
-      IO.inspect(stake, label: "MATCHED stake #{bet.type}")
-      IO.inspect(trunc(stake * real_odds), label: "MATCHED deposit")
+      #IO.inspect(real_odds, label: "MATCHED odds #{bet.type}")
+      #IO.inspect(stake, label: "MATCHED stake #{bet.type}")
+      #IO.inspect(trunc(stake * real_odds), label: "MATCHED deposit")
       UserDatabase.user_deposit(bet.user_id, trunc(stake * real_odds))
     end)
   end
 
   defp market_set_status(id, status) do
     case MarketDatabase.get_market(id) do
-      {:error, :not_found} ->
+      nil ->
         {:error, :market_not_found}
 
-      {:ok, market} ->
+      market ->
         MarketDatabase.put_market(id, market.name, market.description, status)
     end
   end
@@ -194,6 +194,13 @@ defmodule Betunfair do
     :ok
   end
 
+  # Stops iterating if one list is empty
+  defp iterate_order_books([], _) do
+  end
+
+  defp iterate_order_books(_, []) do
+  end
+
   defp iterate_order_books(backs, lays) do
     # IO.inspect(backs)
     # IO.inspect(lays)
@@ -221,7 +228,7 @@ defmodule Betunfair do
           MatchDatabase.put(back_bet.market_id, b_id, l_id, real_lay_stake)
 
         true ->
-          IO.inspect(back_bet.stake, label: "back stake")
+          #IO.inspect(back_bet.stake, label: "back stake")
           BetDatabase.consume_stake(b_id, back_bet.stake)
           BetDatabase.consume_stake(l_id, trunc(back_bet.stake * ((lay_bet.odds - 100) / 100)))
           # stores matched bets

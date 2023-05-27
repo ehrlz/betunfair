@@ -115,7 +115,7 @@ defmodule BetTest do
     assert bet.stake == 150
 
     {:ok, bet2} = Betunfair.bet_get(id2)
-    assert bet.stake == 150
+    assert bet2.stake == 150
 
     assert BetDatabase.consume_stake(id, 100) == :ok
     {:ok, bet} = Betunfair.bet_get(id)
