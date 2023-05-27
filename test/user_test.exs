@@ -18,9 +18,19 @@ defmodule UserTest do
     assert UserDatabase.user_deposit(1, 10) == :ok
     assert UserDatabase.user_deposit(2, 10) == {:error, :user_not_found}
     assert UserDatabase.user_withdraw(1, 5) == :ok
+    assert {:ok, %{balance: 5}} = UserDatabase.user_get(1)
     assert UserDatabase.user_withdraw(1, 10) == {:error, :not_enough_money_to_withdraw}
     assert UserDatabase.user_withdraw(2, 10) == {:error, :user_not_found}
     assert UserDatabase.user_deposit(1, -1) == {:error, :amount_not_positive}
+
+    assert UserDatabase.add_user(3, "pepe") == {:ok, 3}
+    assert UserDatabase.user_deposit(3, 1000) == :ok
+    assert UserDatabase.user_deposit(3, 20) == :ok
+    assert {:ok, %{balance: 1020}} = UserDatabase.user_get(3)
+    assert UserDatabase.user_withdraw(3, 100) == :ok
+    assert {:ok, %{balance: 920}} = UserDatabase.user_get(3)
+    assert UserDatabase.user_deposit(3, 1000) == :ok
+    assert {:ok, %{balance: 1920}} = UserDatabase.user_get(3)
   end
 
   test "get user" do

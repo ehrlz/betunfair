@@ -16,10 +16,7 @@ defmodule MarketDatabase do
     reply =
       case op do
         {:get, market_id} ->
-          case CubDB.get(db_markets, market_id) do
-            nil -> {:error, :not_found}
-            value -> {:ok, value}
-          end
+          CubDB.get(db_markets, market_id)
 
         :list ->
           list =
@@ -62,7 +59,7 @@ defmodule MarketDatabase do
     GenServer.start_link(__MODULE__, default, name: MarketDatabase)
   end
 
-  @spec get_market(binary()) :: {:ok, map()} | {:error, atom()}
+  @spec get_market(binary()) :: Market.t() | nil
   def get_market(market_id) do
     GenServer.call(MarketDatabase, {:get, market_id})
   end

@@ -35,15 +35,18 @@ defmodule BetDatabase do
 
         {:list, market_id} ->
           CubDB.select(bet_db)
-          |> Enum.filter(fn {_id, bet} -> bet.market_id == market_id end)
+          |> Enum.map(fn {_id, bet} -> bet end)
+          |> Enum.filter(fn bet -> bet.market_id == market_id end)
 
         {:list_by_market, market_id} ->
           CubDB.select(bet_db)
-          |> Enum.filter(fn {_id, bet} -> bet.market_id == market_id end)
+          |> Enum.map(fn {_id, bet} -> bet end)
+          |> Enum.filter(fn bet -> bet.market_id == market_id end)
 
         {:list_by_user, user_id} ->
           CubDB.select(bet_db)
-          |> Enum.filter(fn {_id, bet} -> bet.user_id == user_id end)
+          |> Enum.map(fn {_id, bet} -> bet end)
+          |> Enum.filter(fn bet -> bet.user_id == user_id end)
 
         {:consume_stake, bet_id, value} ->
           bet = CubDB.get(bet_db, bet_id)
@@ -107,7 +110,6 @@ defmodule BetDatabase do
   @spec list_bets_by_market(binary) :: [Bet.t()]
   def list_bets_by_market(market_id) do
     GenServer.call(BetDatabase, {:list_by_market, market_id})
-    |> Enum.map(fn {_id, bet} -> bet end)
   end
 
   @spec list_bets_by_user(binary) :: [Bet.t()]

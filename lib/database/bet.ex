@@ -6,7 +6,6 @@ defmodule Bet do
             odds: 0,
             original_stake: 0,
             stake: 0,
-            matched_bets: [],
             status: :active,
             date: nil
 
@@ -18,7 +17,6 @@ defmodule Bet do
           odds: integer(),
           original_stake: integer(),
           stake: integer(),
-          matched_bets: list(Bet),
           status: atom(),
           date: Date.t()
         }
