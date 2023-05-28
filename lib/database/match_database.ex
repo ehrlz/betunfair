@@ -25,20 +25,20 @@ defmodule MatchDatabase do
         {:list_by_market, market_id, op} ->
           list =
             CubDB.select(db_matched)
-            |> Enum.to_list()
-            |> Enum.map(fn {_id, match} -> match end)
-            |> Enum.filter(fn match -> match.market_id == market_id end)
+            |> Stream.map(fn {_id, match} -> match end)
+            |> Stream.filter(fn match -> match.market_id == market_id end)
 
           case op do
             :all ->
               list
 
             :back ->
-              Enum.map(list, fn match -> {match.back_id, match.value} end)
+              Stream.map(list, fn match -> {match.back_id, match.value} end)
 
             :lay ->
-              Enum.map(list, fn match -> {match.lay_id, match.value} end)
+              Stream.map(list, fn match -> {match.lay_id, match.value} end)
           end
+          |> Enum.to_list()
 
         {:put, match_id, match} ->
           CubDB.put(db_matched, match_id, match)

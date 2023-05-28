@@ -61,15 +61,15 @@ defmodule Betunfair do
 
   # DEVUELVE TODO EL DINERO DE LAS APUESTA, match o unmatch
   @spec market_cancel(binary) :: :ok | {:error, atom}
-  def market_cancel(id) do
-    BetDatabase.list_bets(id)
+  def market_cancel(market_id) do
+    BetDatabase.list_bets_by_market(market_id, :all)
     |> Enum.each(fn bet ->
       BetDatabase.bet_set_status(bet.id, :cancelled)
       # returns unmatched and matched stake
       UserDatabase.user_deposit(bet.user_id, bet.original_stake)
     end)
 
-    market_set_status(id, :cancelled)
+    market_set_status(market_id, :cancelled)
   end
 
   # TODO
@@ -200,15 +200,21 @@ defmodule Betunfair do
         trunc(back_bet.stake * (back_bet.odds / 100)) - back_bet.stake >= real_lay_stake ->
           # IO.inspect(lay_bet.stake, label: "lay stake")
           # IO.inspect(real_lay_stake, label: "formula lay stake")
-          BetDatabase.consume_stake(b_id, real_lay_stake)
-          BetDatabase.consume_stake(l_id, lay_bet.stake)
+          BetDatabase.update(b_id, :stake, back_bet.stake - real_lay_stake)
+          BetDatabase.update(l_id, :stake, 0)
           # stores matched bets
           MatchDatabase.put(back_bet.market_id, b_id, l_id, real_lay_stake)
 
         true ->
           # IO.inspect(back_bet.stake, label: "back stake")
-          BetDatabase.consume_stake(b_id, back_bet.stake)
-          BetDatabase.consume_stake(l_id, trunc(back_bet.stake * ((lay_bet.odds - 100) / 100)))
+          BetDatabase.update(b_id, :stake, 0)
+
+          BetDatabase.update(
+            l_id,
+            :stake,
+            lay_bet.stake - trunc(back_bet.stake * ((lay_bet.odds - 100) / 100))
+          )
+
           # stores matched bets
           MatchDatabase.put(back_bet.market_id, b_id, l_id, back_bet.stake)
       end
