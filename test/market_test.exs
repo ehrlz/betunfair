@@ -12,21 +12,23 @@ defmodule MarketTest do
     {:ok, id} = Betunfair.market_create("Nadal-Nole", "Prueba mercado")
 
     assert Betunfair.market_get(id) ==
-             {:ok, %Market{name: "Nadal-Nole", description: "Prueba mercado"}}
+             {:ok, %Market{id: id, name: "Nadal-Nole", description: "Prueba mercado"}}
   end
 
   test "market get no desc" do
     {:ok, id} = Betunfair.market_create("Nadal-Nole", nil)
-    assert Betunfair.market_get(id) == {:ok, %Market{name: "Nadal-Nole", description: nil}}
+
+    assert Betunfair.market_get(id) ==
+             {:ok, %Market{id: id, name: "Nadal-Nole", description: nil}}
   end
 
   test "market list" do
-    {:ok, _id1} = Betunfair.market_create("Nadal-Nole", "Prueba mercado")
-    {:ok, _id2} = Betunfair.market_create("Barcelona-Madrid", nil)
-    {:ok, _id3} = Betunfair.market_create("CSKA-Estrella Roja", nil)
+    assert {:ok, _id1} = Betunfair.market_create("Nadal-Nole", "Prueba mercado")
+    assert {:ok, _id2} = Betunfair.market_create("Barcelona-Madrid", nil)
+    assert {:ok, _id3} = Betunfair.market_create("CSKA-Estrella Roja", nil)
 
-    {:ok, id_list} = Betunfair.market_list()
-    assert length(id_list) == 3
+    assert {:ok, list_ids} = Betunfair.market_list()
+    assert length(list_ids) == 3
   end
 
   test "market list active" do
@@ -34,7 +36,7 @@ defmodule MarketTest do
     {:ok, id2} = Betunfair.market_create("Barcelona-Madrid", nil)
     {:ok, _id3} = Betunfair.market_create("CSKA-Estrella Roja", nil)
 
-    assert Betunfair.market_cancel(id2) == :ok
+    assert :ok == Betunfair.market_cancel(id2)
 
     {:ok, id_list} = Betunfair.market_list_active()
     assert length(id_list) == 2

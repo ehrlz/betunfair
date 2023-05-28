@@ -39,13 +39,15 @@ defmodule BetDatabase do
           |> Enum.filter(fn bet -> bet.market_id == market_id end)
 
         {:list_by_market, market_id, status} ->
-          list_bets = CubDB.select(bet_db)
-          |> Enum.map(fn {_id, bet} -> bet end)
-          |> Enum.filter(fn bet -> bet.market_id == market_id end)
+          list_bets =
+            CubDB.select(bet_db)
+            |> Enum.map(fn {_id, bet} -> bet end)
+            |> Enum.filter(fn bet -> bet.market_id == market_id end)
 
           case status do
             nil ->
               list_bets
+
             status ->
               Enum.filter(list_bets, fn bet -> bet.status == status end)
           end

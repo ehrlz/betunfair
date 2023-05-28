@@ -45,34 +45,18 @@ defmodule Betunfair do
   """
   @spec market_create(String.t(), String.t()) :: {:ok, binary}
   def market_create(name, description) do
-    id = UUID.uuid1()
-    MarketDatabase.put_market(id, name, description)
+    id = MarketDatabase.put(name, description)
     {:ok, id}
   end
 
   @spec market_list :: {:ok, list}
   def market_list() do
-    {:ok, list} = MarketDatabase.list_markets()
-
-    reply =
-      list
-      |> Enum.map(fn {id, _market} -> id end)
-
-    {:ok, reply}
+    {:ok, MarketDatabase.list()}
   end
 
-  @spec market_list_active :: {:ok, list}
+  @spec market_list_active :: {:ok, [binary()]}
   def market_list_active() do
-    {:ok, list} = MarketDatabase.list_markets()
-
-    active_list =
-      list
-      |> Enum.filter(fn {_id, market} ->
-        Map.get(market, :status) == :active
-      end)
-      |> Enum.map(fn {id, _market} -> id end)
-
-    {:ok, active_list}
+    {:ok, MarketDatabase.list(:active)}
   end
 
   # DEVUELVE TODO EL DINERO DE LAS APUESTA, match o unmatch
@@ -81,7 +65,7 @@ defmodule Betunfair do
     BetDatabase.list_bets(id)
     |> Enum.each(fn bet ->
       BetDatabase.bet_set_status(bet.id, :cancelled)
-      # unmatched and matched stake
+      # returns unmatched and matched stake
       UserDatabase.user_deposit(bet.user_id, bet.original_stake)
     end)
 
@@ -102,7 +86,7 @@ defmodule Betunfair do
     # all unmatched bet' stake return to user
     BetDatabase.list_bets_by_market(id, :active)
     |> Enum.each(fn bet ->
-      #IO.inspect(bet.stake, label: "UNMATCHED #{bet.type}")
+      # IO.inspect(bet.stake, label: "UNMATCHED #{bet.type}")
       UserDatabase.user_deposit(bet.user_id, bet.stake)
     end)
 
@@ -120,26 +104,26 @@ defmodule Betunfair do
     |> Enum.each(fn {bet_id, stake} ->
       bet = BetDatabase.bet_get(bet_id)
       real_odds = bet.odds / 100
-      #IO.inspect(real_odds, label: "MATCHED odds #{bet.type}")
-      #IO.inspect(stake, label: "MATCHED stake #{bet.type}")
-      #IO.inspect(trunc(stake * real_odds), label: "MATCHED deposit")
+      # IO.inspect(real_odds, label: "MATCHED odds #{bet.type}")
+      # IO.inspect(stake, label: "MATCHED stake #{bet.type}")
+      # IO.inspect(trunc(stake * real_odds), label: "MATCHED deposit")
       UserDatabase.user_deposit(bet.user_id, trunc(stake * real_odds))
     end)
   end
 
   defp market_set_status(id, status) do
-    case MarketDatabase.get_market(id) do
+    case MarketDatabase.get(id) do
       nil ->
         {:error, :market_not_found}
 
       market ->
-        MarketDatabase.put_market(id, market.name, market.description, status)
+        MarketDatabase.update(id, market.name, market.description, status)
     end
   end
 
   @spec market_get(binary) :: {:error, atom} | {:ok, Market.t()}
   def market_get(id) do
-    case MarketDatabase.get_market(id) do
+    case MarketDatabase.get(id) do
       nil ->
         {:error, :market_not_found}
 
@@ -156,29 +140,23 @@ defmodule Betunfair do
     {:ok, list}
   end
 
-  # TODO ENUMERABLE
   @spec market_pending_backs(binary) ::
           {:error, atom} | {:ok, Enumerable.t({integer(), Enumerable.t(binary)})}
   def market_pending_backs(market_id) do
     list =
-      BetDatabase.list_bets_by_market(market_id)
-      |> Enum.filter(fn bet ->
-        bet.status == :active and bet.type == :back
-      end)
+      BetDatabase.list_bets_by_market(market_id, :active)
+      |> Enum.filter(fn bet -> bet.type == :back end)
       |> Enum.sort({:asc, Bet})
       |> Enum.map(fn bet -> {bet.odds, bet.id} end)
 
     {:ok, list}
   end
 
-  # TODO ENUMERABLE
   @spec market_pending_lays(binary) :: {:error, atom} | {:ok, Enumerable.t(binary)}
   def market_pending_lays(market_id) do
     list =
-      BetDatabase.list_bets_by_market(market_id)
-      |> Enum.filter(fn bet ->
-        bet.status == :active and bet.type == :lay
-      end)
+      BetDatabase.list_bets_by_market(market_id, :active)
+      |> Stream.filter(fn bet -> bet.type == :lay end)
       |> Enum.sort({:desc, Bet})
       |> Enum.map(fn bet -> {bet.odds, bet.id} end)
 
@@ -228,7 +206,7 @@ defmodule Betunfair do
           MatchDatabase.put(back_bet.market_id, b_id, l_id, real_lay_stake)
 
         true ->
-          #IO.inspect(back_bet.stake, label: "back stake")
+          # IO.inspect(back_bet.stake, label: "back stake")
           BetDatabase.consume_stake(b_id, back_bet.stake)
           BetDatabase.consume_stake(l_id, trunc(back_bet.stake * ((lay_bet.odds - 100) / 100)))
           # stores matched bets
@@ -279,7 +257,7 @@ defmodule Betunfair do
   end
 
   defp bet_new(user_id, market_id, type, stake, odds) do
-    case MarketDatabase.get_market(market_id) do
+    case MarketDatabase.get(market_id) do
       nil ->
         {:error, :market_not_found}
 
