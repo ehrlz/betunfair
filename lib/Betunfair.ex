@@ -339,6 +339,11 @@ defmodule Betunfair do
     UserDatabase.user_deposit(id, amount)
   end
 
+  @spec user_withdraw(binary(), integer()) :: {:error, atom} | :ok
+  def user_withdraw(id, amount) do
+    UserDatabase.user_withdraw(id, amount)
+  end
+
   @spec user_get(binary()) :: {:error, atom} | {:ok, map()}
   def user_get(id) do
     UserDatabase.user_get(id)
