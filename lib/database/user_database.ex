@@ -41,7 +41,7 @@ defmodule UserDatabase do
               {:ok, user}
           end
 
-        # deposit---------------------------- TODO cambiar sintaxis
+        # deposit----------------------------
 
         {:user_deposit, id, amount} ->
           case CubDB.get(db_users, id) do
@@ -59,7 +59,7 @@ defmodule UserDatabase do
               end
           end
 
-        # withdraw---------------------------- TODO cambiar sintaxis
+        # withdraw----------------------------
 
         {:user_withdraw, id, amount} ->
           case CubDB.get(db_users, id) do
