@@ -59,8 +59,13 @@ defmodule MarketDatabase do
         {:delete, market_id} ->
           CubDB.delete(db_markets, market_id)
 
+        # clear----------------------------
         :clear ->
           CubDB.clear(db_markets)
+
+        # stop----------------------------
+        :stop ->
+          CubDB.stop(db_markets)
       end
 
     {:reply, reply, db_markets}
@@ -109,5 +114,14 @@ defmodule MarketDatabase do
   @spec clear() :: :ok
   def clear() do
     GenServer.call(MarketDatabase, :clear)
+  end
+
+  @spec stop :: :ok
+  @doc """
+  Stops the server
+  """
+  def stop() do
+    GenServer.call(MarketDatabase, :stop)
+    GenServer.stop(MarketDatabase)
   end
 end

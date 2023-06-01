@@ -44,6 +44,7 @@ defmodule UserDatabase do
         # deposit----------------------------
 
         {:user_deposit, id, amount} ->
+          1/0
           case CubDB.get(db_users, id) do
             nil ->
               {:error, :user_not_found}
@@ -85,6 +86,10 @@ defmodule UserDatabase do
         # clear----------------------------
         :clear ->
           CubDB.clear(db_users)
+
+        # stop----------------------------
+        :stop ->
+          CubDB.stop(db_users)
       end
 
     {:reply, reply, db_users}
@@ -120,9 +125,18 @@ defmodule UserDatabase do
   end
 
   @doc """
-  Removes persistent data and stops server if it's running
+  Removes persistent data
   """
   def clear() do
     GenServer.call(UserDatabase, :clear)
+  end
+
+  @spec stop :: :ok
+  @doc """
+  Stops the server
+  """
+  def stop() do
+    GenServer.call(UserDatabase, :stop)
+    GenServer.stop(UserDatabase)
   end
 end

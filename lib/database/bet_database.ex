@@ -59,6 +59,9 @@ defmodule BetDatabase do
 
         :clear ->
           CubDB.clear(bet_db)
+
+        :stop ->
+          CubDB.stop(bet_db)
       end
 
     {:reply, reply, bet_db}
@@ -122,5 +125,14 @@ defmodule BetDatabase do
   """
   def clear() do
     GenServer.call(BetDatabase, :clear)
+  end
+
+  @spec stop :: :ok
+  @doc """
+  Stops the server
+  """
+  def stop() do
+    GenServer.call(BetDatabase, :stop)
+    GenServer.stop(BetDatabase)
   end
 end

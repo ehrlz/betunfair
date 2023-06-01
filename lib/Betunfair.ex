@@ -7,32 +7,20 @@ defmodule Betunfair do
   Starts exchange. If name exists, recovers market. If market is up, nothing is done
   """
   def start_link(name) do
-    options = [
-      name: Betunfair.Supervisor,
-      strategy: :one_for_one
-    ]
+    MySupervisor.start_link([name])
 
-    case DynamicSupervisor.start_link(options) do
-      {:ok, _} ->
-        {:ok, _pid} = DynamicSupervisor.start_child(Betunfair.Supervisor, {UserDatabase, [name]})
-
-        {:ok, _pid} =
-          DynamicSupervisor.start_child(Betunfair.Supervisor, {MarketDatabase, [name]})
-
-        {:ok, _pid} = DynamicSupervisor.start_child(Betunfair.Supervisor, {BetDatabase, [name]})
-
-        {:ok, name}
-
-      error ->
-        error
-    end
+    IO.inspect(MySupervisor.children())
+    {:ok,name}
   end
 
   @doc """
   Shutdown running exchange preserving data.
   """
   def stop() do
-    DynamicSupervisor.stop(Betunfair.Supervisor)
+    # :ok = UserDatabase.stop()
+    # :ok = MarketDatabase.stop()
+    # :ok = BetDatabase.stop()
+    :ok = MySupervisor.stop()
   end
 
   @doc """
@@ -41,17 +29,9 @@ defmodule Betunfair do
   def clean(name) do
     case start_link(name) do
       {:ok, _} ->
-        UserDatabase.clear()
-        MarketDatabase.clear()
-        BetDatabase.clear()
-
-        :ok = stop()
-        {:ok, name}
-
-      {:error, {:already_started, _}} ->
-        UserDatabase.clear()
-        MarketDatabase.clear()
-        BetDatabase.clear()
+        :ok = UserDatabase.clear()
+        :ok = MarketDatabase.clear()
+        :ok = BetDatabase.clear()
 
         :ok = stop()
         {:ok, name}
