@@ -19,32 +19,30 @@ defmodule BetDatabase do
           CubDB.put(bet_db, bet.id, bet)
           bet.id
 
-        # TODO cancelled market?
-        {:set_status, bet_id, status} ->
-          case CubDB.get(bet_db, bet_id) do
-            nil ->
-              {:error, :bet_not_found}
-
-            bet ->
-              canc_bet = Map.put(bet, :status, status)
-              CubDB.put(bet_db, bet_id, canc_bet)
-          end
-
         {:get, bet_id} ->
           CubDB.get(bet_db, bet_id)
 
-        {:list_by_market, market_id, status} ->
+        {:list_by_market, market_id, type, status} ->
           list_bets =
             CubDB.select(bet_db)
             |> Stream.map(fn {_id, bet} -> bet end)
             |> Stream.filter(fn bet -> bet.market_id == market_id end)
+
+          list_type =
+            case type do
+              :all ->
+                list_bets
+
+              type ->
+                Stream.filter(list_bets, fn bet -> bet.bet_type == type end)
+            end
 
           case status do
             :all ->
               list_bets
 
             status ->
-              Stream.filter(list_bets, fn bet -> bet.status == status end)
+              Stream.filter(list_type, fn bet -> bet.status == status end)
           end
           |> Enum.to_list()
 
@@ -94,19 +92,20 @@ defmodule BetDatabase do
     GenServer.call(BetDatabase, {:new, new_bet})
   end
 
-  @spec bet_set_status(binary(), atom() | {atom(), boolean()}) :: :ok | {:error, atom()}
-  def bet_set_status(bet_id, status) do
-    GenServer.call(BetDatabase, {:set_status, bet_id, status})
-  end
-
+  @doc """
+  Returns a bet with this id, or nil if is not found
+  """
   @spec bet_get(binary()) :: Bet.t() | nil
   def bet_get(bet_id) do
     GenServer.call(BetDatabase, {:get, bet_id})
   end
 
-  @spec list_bets_by_market(binary, atom) :: [Bet.t()]
-  def list_bets_by_market(market_id, status \\ :all) do
-    GenServer.call(BetDatabase, {:list_by_market, market_id, status})
+  @doc """
+  List bets from market with certain status or type
+  """
+  @spec list_bets_by_market(binary, atom, atom) :: [Bet.t()]
+  def list_bets_by_market(market_id, type \\ :all, status \\ :all) do
+    GenServer.call(BetDatabase, {:list_by_market, market_id, type, status})
   end
 
   @spec list_bets_by_user(binary) :: [Bet.t()]

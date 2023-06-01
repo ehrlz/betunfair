@@ -122,7 +122,7 @@ defmodule BetTest do
     assert bet2.stake == 50
   end
 
-  test "bet get" do
+  test "matched_bets" do
     {:ok, user_id} = Betunfair.user_create("00001111A", "Pepe Viyuela")
     {:ok, market_id} = Betunfair.market_create("Nadal-Nole", "Prueba mercado")
     assert Betunfair.user_deposit(user_id, 1000) == :ok
@@ -131,9 +131,26 @@ defmodule BetTest do
     {:ok, id2} = Betunfair.bet_back(user_id, market_id, 150, 150)
 
     :ok = Betunfair.market_match(market_id)
-    {:ok, %{id: ^id, bet_type: :lay, stake: 300, odds: 150, status: :active, matched_bets: [^id2]}} =
+
+    {:ok, %{id: ^id, bet_type: :lay, status: :active, matched_bets: [^id2]}} =
       Betunfair.bet_get(id)
-    {:ok, %{id: ^id, bet_type: :lay, stake: 300, odds: 150, status: :active, matched_bets: [^id]}} =
+
+    {:ok, %{id: ^id2, bet_type: :back, status: :active, matched_bets: [^id]}} =
       Betunfair.bet_get(id2)
+  end
+
+  test "matched_bets2" do
+    {:ok, user_id} = Betunfair.user_create("00001111A", "Pepe Viyuela")
+    {:ok, market_id} = Betunfair.market_create("Nadal-Nole", "Prueba mercado")
+    assert Betunfair.user_deposit(user_id, 1000) == :ok
+
+    {:ok, id} = Betunfair.bet_lay(user_id, market_id, 300, 150)
+    {:ok, id2} = Betunfair.bet_back(user_id, market_id, 150, 150)
+
+    assert :ok = Betunfair.market_match(market_id)
+
+    assert :ok = Betunfair.market_settle(market_id, true)
+    assert {:ok, %{status: {:market_settled, true}}} = Betunfair.bet_get(id)
+    assert {:ok, %{status: {:market_settled, true}}} = Betunfair.bet_get(id2)
   end
 end
