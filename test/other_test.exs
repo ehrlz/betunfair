@@ -17,12 +17,11 @@ defmodule OtherTests do
     assert {:ok, %{balance: 3000}} = Betunfair.user_get(u1)
   end
 
-  defp is_error(:error),do: true
-  defp is_error({:error,_}), do: true
+  defp is_error(:error), do: true
+  defp is_error({:error, _}), do: true
   defp is_error(_), do: false
 
   defp is_ok(:ok), do: true
-  defp is_ok({:ok,_}), do: true
+  defp is_ok({:ok, _}), do: true
   defp is_ok(_), do: false
-
 end

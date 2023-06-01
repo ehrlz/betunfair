@@ -2,13 +2,9 @@ defmodule BetTest do
   use ExUnit.Case
   doctest Betunfair
 
-  setup_all do
-    :ok
-  end
-
   setup do
-    Betunfair.clean("app")
-    Betunfair.start_link("app")
+    assert {:ok, _} = Betunfair.clean("app")
+    assert {:ok, _} = Betunfair.start_link("app")
     :ok
   end
 
@@ -124,5 +120,20 @@ defmodule BetTest do
     assert BetDatabase.update(id2, :stake, bet2.stake - 100) == :ok
     {:ok, bet2} = Betunfair.bet_get(id2)
     assert bet2.stake == 50
+  end
+
+  test "bet get" do
+    {:ok, user_id} = Betunfair.user_create("00001111A", "Pepe Viyuela")
+    {:ok, market_id} = Betunfair.market_create("Nadal-Nole", "Prueba mercado")
+    assert Betunfair.user_deposit(user_id, 1000) == :ok
+
+    {:ok, id} = Betunfair.bet_lay(user_id, market_id, 300, 150)
+    {:ok, id2} = Betunfair.bet_back(user_id, market_id, 150, 150)
+
+    :ok = Betunfair.market_match(market_id)
+    {:ok, %{id: ^id, bet_type: :lay, stake: 300, odds: 150, status: :active, matched_bets: [^id2]}} =
+      Betunfair.bet_get(id)
+    {:ok, %{id: ^id, bet_type: :lay, stake: 300, odds: 150, status: :active, matched_bets: [^id]}} =
+      Betunfair.bet_get(id2)
   end
 end

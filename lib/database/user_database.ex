@@ -85,11 +85,6 @@ defmodule UserDatabase do
         # clear----------------------------
         :clear ->
           CubDB.clear(db_users)
-          CubDB.stop(db_users)
-
-        # stop----------------------------
-        :stop ->
-          CubDB.stop(db_users)
       end
 
     {:reply, reply, db_users}
@@ -102,7 +97,6 @@ defmodule UserDatabase do
 
   # Client
 
-  @spec start_link(maybe_improper_list) :: :ignore | {:error, any} | {:ok, pid}
   def start_link(default) when is_list(default) do
     GenServer.start_link(__MODULE__, default, name: UserDatabase)
   end
@@ -128,33 +122,7 @@ defmodule UserDatabase do
   @doc """
   Removes persistent data and stops server if it's running
   """
-  def clear(name) do
-    case GenServer.whereis(UserDatabase) do
-      nil ->
-        {:ok, pid} = start_link([name])
-        GenServer.call(pid, :clear)
-        GenServer.stop(pid)
-
-      pid ->
-        GenServer.call(pid, :clear)
-        GenServer.stop(pid)
-    end
-
-    :ok
-  end
-
-  @doc """
-  Stops server process
-  """
-  def stop() do
-    case GenServer.whereis(UserDatabase) do
-      nil ->
-        {:error, :exchange_not_deployed}
-
-      pid ->
-        GenServer.call(UserDatabase, :stop)
-        GenServer.stop(pid)
-        :ok
-    end
+  def clear() do
+    GenServer.call(UserDatabase, :clear)
   end
 end

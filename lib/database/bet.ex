@@ -1,17 +1,18 @@
 defmodule Bet do
   defstruct id: nil,
-            type: nil,
+            bet_type: nil,
             user_id: nil,
             market_id: nil,
             odds: 0,
             original_stake: 0,
             stake: 0,
+            matched_bets: [],
             status: :active,
             date: nil
 
   @type t() :: %Bet{
           id: binary(),
-          type: atom(),
+          bet_type: atom(),
           user_id: binary(),
           market_id: binary(),
           odds: integer(),

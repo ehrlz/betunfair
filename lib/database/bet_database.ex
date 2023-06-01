@@ -61,10 +61,6 @@ defmodule BetDatabase do
 
         :clear ->
           CubDB.clear(bet_db)
-          CubDB.stop(bet_db)
-
-        :stop ->
-          CubDB.stop(bet_db)
       end
 
     {:reply, reply, bet_db}
@@ -86,7 +82,7 @@ defmodule BetDatabase do
   def new_bet(user_id, market_id, type, stake, odds) do
     new_bet = %Bet{
       id: UUID.uuid1(),
-      type: type,
+      bet_type: type,
       user_id: user_id,
       market_id: market_id,
       original_stake: stake,
@@ -125,33 +121,7 @@ defmodule BetDatabase do
   @doc """
   Removes persistent data and stops server if it's running
   """
-  def clear(name) do
-    case GenServer.whereis(BetDatabase) do
-      nil ->
-        {:ok, pid} = start_link([name])
-        GenServer.call(pid, :clear)
-        GenServer.stop(pid)
-
-      pid ->
-        GenServer.call(pid, :clear)
-        GenServer.stop(pid)
-    end
-
-    :ok
-  end
-
-  @doc """
-  Stops server process
-  """
-  def stop() do
-    case GenServer.whereis(BetDatabase) do
-      nil ->
-        {:error, :exchange_not_deployed}
-
-      pid ->
-        GenServer.call(BetDatabase, :stop)
-        GenServer.stop(pid)
-        :ok
-    end
+  def clear() do
+    GenServer.call(BetDatabase, :clear)
   end
 end

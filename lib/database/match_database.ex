@@ -47,13 +47,7 @@ defmodule MatchDatabase do
           CubDB.delete(match_id, match_id)
 
         :clear ->
-          entries =
-            CubDB.select(db_matched)
-            |> Enum.to_list()
-            |> Enum.map(fn {id, _market} -> id end)
-
-          CubDB.delete_multi(db_matched, entries)
-          CubDB.stop(db_matched)
+          CubDB.clear(db_matched)
 
         :stop ->
           CubDB.stop(db_matched)
@@ -118,35 +112,8 @@ defmodule MatchDatabase do
   @doc """
   Removes persistent data and stops server if it's running
   """
-  @spec clear(name :: binary()) :: :ok
-  def clear(name) do
-    case GenServer.whereis(MatchDatabase) do
-      nil ->
-        {:ok, pid} = start_link([name])
-        GenServer.call(pid, :clear)
-        GenServer.stop(pid)
-
-      pid ->
-        GenServer.call(pid, :clear)
-        GenServer.stop(pid)
-    end
-
-    :ok
-  end
-
-  @doc """
-  Stops server process
-  """
-  @spec stop() :: :ok | {:error, :exchange_not_deployed}
-  def stop() do
-    case GenServer.whereis(MatchDatabase) do
-      nil ->
-        {:error, :exchange_not_deployed}
-
-      pid ->
-        GenServer.call(MatchDatabase, :stop)
-        GenServer.stop(pid)
-        :ok
-    end
+  @spec clear() :: :ok
+  def clear() do
+    GenServer.call(MatchDatabase, :clear)
   end
 end

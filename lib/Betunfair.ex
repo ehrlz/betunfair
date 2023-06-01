@@ -2,40 +2,66 @@ defmodule Betunfair do
   @moduledoc """
   Project from Universidad Politécnica de Madrid
   """
-  alias CubDB.Btree.Enumerable
 
   @doc """
-  Starts exchange. If name exists, recovers market TODO
+  Starts exchange. If name exists, recovers market. If market is up, nothing is done
   """
   def start_link(name) do
-    MarketDatabase.start_link([name])
-    UserDatabase.start_link([name])
-    BetDatabase.start_link([name])
-    MatchDatabase.start_link([name])
-    {:ok, name}
+    options = [
+      name: Betunfair.Supervisor,
+      strategy: :one_for_one
+    ]
+
+    case DynamicSupervisor.start_link(options) do
+      {:ok, _} ->
+        {:ok, _pid} = DynamicSupervisor.start_child(Betunfair.Supervisor, {UserDatabase, [name]})
+
+        {:ok, _pid} =
+          DynamicSupervisor.start_child(Betunfair.Supervisor, {MarketDatabase, [name]})
+
+        {:ok, _pid} = DynamicSupervisor.start_child(Betunfair.Supervisor, {BetDatabase, [name]})
+        {:ok, _pid} = DynamicSupervisor.start_child(Betunfair.Supervisor, {MatchDatabase, [name],})
+
+        {:ok, name}
+
+      error ->
+        error
+    end
   end
 
   @doc """
   Shutdown running exchange preserving data.
-  TODO supervisor
   """
   def stop() do
-    UserDatabase.stop()
-    MarketDatabase.stop()
-    BetDatabase.stop()
-    MatchDatabase.stop()
+    DynamicSupervisor.stop(Betunfair.Supervisor)
   end
 
   @doc """
-  Stops the exchange and removes persistent data.
-  TODO supervisor
+  Stops the exchange and removes persistent data. Initiates app for cleaning.
   """
   def clean(name) do
-    UserDatabase.clear(name)
-    MarketDatabase.clear(name)
-    BetDatabase.clear(name)
-    MatchDatabase.clear(name)
-    {:ok, name}
+    case start_link(name) do
+      {:ok, _} ->
+        UserDatabase.clear()
+        MarketDatabase.clear()
+        BetDatabase.clear()
+        MatchDatabase.clear()
+
+        :ok = stop()
+        {:ok, name}
+
+      {:error, {:already_started, _}} ->
+        UserDatabase.clear()
+        MarketDatabase.clear()
+        BetDatabase.clear()
+        MatchDatabase.clear()
+
+        :ok = stop()
+        {:ok, name}
+
+      other_error ->
+        other_error
+    end
   end
 
   # MARKET
@@ -86,7 +112,7 @@ defmodule Betunfair do
     # all unmatched bet' stake return to user
     BetDatabase.list_bets_by_market(id, :active)
     |> Enum.each(fn bet ->
-      # IO.inspect(bet.stake, label: "UNMATCHED #{bet.type}")
+      # IO.inspect(bet.stake, label: "UNMATCHED #{bet.bet_type}")
       UserDatabase.user_deposit(bet.user_id, bet.stake)
     end)
 
@@ -104,8 +130,8 @@ defmodule Betunfair do
     |> Enum.each(fn {bet_id, stake} ->
       bet = BetDatabase.bet_get(bet_id)
       real_odds = bet.odds / 100
-      # IO.inspect(real_odds, label: "MATCHED odds #{bet.type}")
-      # IO.inspect(stake, label: "MATCHED stake #{bet.type}")
+      # IO.inspect(real_odds, label: "MATCHED odds #{bet.bet_type}")
+      # IO.inspect(stake, label: "MATCHED stake #{bet.bet_type}")
       # IO.inspect(trunc(stake * real_odds), label: "MATCHED deposit")
       UserDatabase.user_deposit(bet.user_id, trunc(stake * real_odds))
     end)
@@ -145,7 +171,7 @@ defmodule Betunfair do
   def market_pending_backs(market_id) do
     list =
       BetDatabase.list_bets_by_market(market_id, :active)
-      |> Enum.filter(fn bet -> bet.type == :back end)
+      |> Enum.filter(fn bet -> bet.bet_type == :back end)
       |> Enum.sort({:asc, Bet})
       |> Enum.map(fn bet -> {bet.odds, bet.id} end)
 
@@ -156,7 +182,7 @@ defmodule Betunfair do
   def market_pending_lays(market_id) do
     list =
       BetDatabase.list_bets_by_market(market_id, :active)
-      |> Stream.filter(fn bet -> bet.type == :lay end)
+      |> Stream.filter(fn bet -> bet.bet_type == :lay end)
       |> Enum.sort({:desc, Bet})
       |> Enum.map(fn bet -> {bet.odds, bet.id} end)
 
@@ -323,8 +349,9 @@ defmodule Betunfair do
         {:error, :bet_not_found}
 
       bet ->
-        {:ok,
-         %{id: bet.id, bet_type: bet.type, stake: bet.stake, odds: bet.odds, status: bet.status}}
+        # {:ok,
+        # %{id: bet.id, bet_type: bet.bet_type, stake: bet.stake, odds: bet.odds, status: bet.status}}
+        {:ok, Map.from_struct(bet)}
     end
   end
 
