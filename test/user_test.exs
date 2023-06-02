@@ -1,10 +1,13 @@
 defmodule UserTest do
-  use ExUnit.Case
+  use ExUnit.Case, async: false
   doctest UserDatabase
 
   setup do
-    UserDatabase.clear("testdb")
-    UserDatabase.start_link(["testdb"])
+    assert {:ok, _} = Betunfair.clean("userdb")
+    assert {:ok, _} = Betunfair.start_link("userdb")
+    assert true == Process.alive?(GenServer.whereis(MySupervisor))
+    assert true == Process.alive?(GenServer.whereis(UserDatabase))
+
     :ok
   end
 

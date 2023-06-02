@@ -2,39 +2,58 @@ defmodule Betunfair do
   @moduledoc """
   Project from Universidad Politécnica de Madrid
   """
-  alias CubDB.Btree.Enumerable
 
   @doc """
-  Starts exchange. If name exists, recovers market TODO
+  Starts exchange. If name exists, recovers market. If market is up, nothing is done
   """
   def start_link(name) do
-    MarketDatabase.start_link([name])
-    UserDatabase.start_link([name])
-    BetDatabase.start_link([name])
-    MatchDatabase.start_link([name])
-    {:ok, name}
+    case MySupervisor.start_link([name]) do
+      {:ok, _} -> {:ok, name}
+      error -> error
+    end
   end
 
   @doc """
-  Shutdown running exchange preserving data.
-  TODO supervisor
+  Shutdown running (if is running) exchange preserving data.
   """
   def stop() do
-    UserDatabase.stop()
-    MarketDatabase.stop()
-    BetDatabase.stop()
-    MatchDatabase.stop()
+    # :ok = UserDatabase.stop()
+    # :ok = MarketDatabase.stop()
+    # :ok = BetDatabase.stop()
+    case GenServer.whereis(MySupervisor) do
+      nil ->
+        :noop
+
+      pid ->
+        case Process.alive?(pid) do
+          true ->
+            try do
+              :ok = Supervisor.stop(MySupervisor, :normal, :infinity)
+            catch
+              :exit, _ -> :ok
+            end
+
+
+          false ->
+            :noop
+        end
+    end
+
+    :ok
   end
 
   @doc """
-  Stops the exchange and removes persistent data.
-  TODO supervisor
+  Stops the exchange and removes persistent data. Initiates app for cleaning.
   """
   def clean(name) do
-    UserDatabase.clear(name)
-    MarketDatabase.clear(name)
-    BetDatabase.clear(name)
-    MatchDatabase.clear(name)
+    :ok = stop()
+    {:ok, _} = start_link(name)
+
+    :ok = UserDatabase.clear()
+    :ok = MarketDatabase.clear()
+    :ok = BetDatabase.clear()
+
+    :ok = stop()
     {:ok, name}
   end
 
@@ -45,68 +64,54 @@ defmodule Betunfair do
   """
   @spec market_create(String.t(), String.t()) :: {:ok, binary}
   def market_create(name, description) do
-    id = UUID.uuid1()
-    MarketDatabase.put_market(id, name, description)
+    id = MarketDatabase.put(name, description)
     {:ok, id}
   end
 
   @spec market_list :: {:ok, list}
   def market_list() do
-    {:ok, list} = MarketDatabase.list_markets()
-
-    reply =
-      list
-      |> Enum.map(fn {id, _market} -> id end)
-
-    {:ok, reply}
+    {:ok, MarketDatabase.list()}
   end
 
-  @spec market_list_active :: {:ok, list}
+  @spec market_list_active :: {:ok, [binary()]}
   def market_list_active() do
-    {:ok, list} = MarketDatabase.list_markets()
-
-    active_list =
-      list
-      |> Enum.filter(fn {_id, market} ->
-        Map.get(market, :status) == :active
-      end)
-      |> Enum.map(fn {id, _market} -> id end)
-
-    {:ok, active_list}
+    {:ok, MarketDatabase.list(:active)}
   end
 
   # DEVUELVE TODO EL DINERO DE LAS APUESTA, match o unmatch
   @spec market_cancel(binary) :: :ok | {:error, atom}
-  def market_cancel(id) do
-    BetDatabase.list_bets(id)
+  def market_cancel(market_id) do
+    BetDatabase.list_bets_by_market(market_id)
     |> Enum.each(fn bet ->
-      BetDatabase.bet_set_status(bet.id, :cancelled)
-      # unmatched and matched stake
+      BetDatabase.update(bet.id, :status, :market_cancelled)
+      # returns unmatched and matched stake
       UserDatabase.user_deposit(bet.user_id, bet.original_stake)
     end)
 
-    market_set_status(id, :cancelled)
+    market_set_status(market_id, :cancelled)
   end
 
-  # TODO
   @spec market_freeze(binary) :: :ok | {:error, atom}
   def market_freeze(id) do
     market_set_status(id, :frozen)
   end
 
-  # TODO unmatch returns to user after settle?
   @spec market_settle(binary(), boolean()) :: :ok | {:error, atom}
   def market_settle(id, result) do
-    market_set_status(id, {:settled, result})
+    :ok = market_set_status(id, {:settled, result})
 
     # all unmatched bet' stake return to user
-    BetDatabase.list_bets_by_market(id, :active)
+    BetDatabase.list_bets_by_market(id, :all, :active)
     |> Enum.each(fn bet ->
-      #IO.inspect(bet.stake, label: "UNMATCHED #{bet.type}")
-      UserDatabase.user_deposit(bet.user_id, bet.stake)
+      # IO.inspect(bet.stake, label: "UNMATCHED stake #{bet.bet_type}")
+      # IO.inspect(bet.original_stake, label: "ORIGINAL #{bet.bet_type}")
+
+      if bet.stake > 0 do
+        :ok = UserDatabase.user_deposit(bet.user_id, bet.stake)
+      end
     end)
 
-    # matched bet' stake goes to winner
+    # declares with type of bet is the winner
     check =
       case result do
         true ->
@@ -116,30 +121,50 @@ defmodule Betunfair do
           :lay
       end
 
-    MatchDatabase.list_by_market(id, check)
-    |> Enum.each(fn {bet_id, stake} ->
-      bet = BetDatabase.bet_get(bet_id)
-      real_odds = bet.odds / 100
-      #IO.inspect(real_odds, label: "MATCHED odds #{bet.type}")
-      #IO.inspect(stake, label: "MATCHED stake #{bet.type}")
-      #IO.inspect(trunc(stake * real_odds), label: "MATCHED deposit")
-      UserDatabase.user_deposit(bet.user_id, trunc(stake * real_odds))
+    # all matched bet' stake return to user with interest
+    BetDatabase.list_bets_by_market(id, check, :active)
+    |> Enum.each(fn bet ->
+      if not Enum.empty?(bet.matched_bets) do
+        case check do
+          # if back wins, benefits are played stake * odds
+          :back ->
+            :ok =
+              UserDatabase.user_deposit(
+                bet.user_id,
+                trunc((bet.original_stake - bet.stake) * (bet.odds / 100))
+              )
+
+          # if back wins, benefits are played back stakes
+          :lay ->
+            :ok =
+              UserDatabase.user_deposit(
+                bet.user_id,
+                bet.original_stake - bet.stake +
+                  trunc((bet.original_stake - bet.stake) / (bet.odds / 100 - 1))
+              )
+        end
+      end
+    end)
+
+    BetDatabase.list_bets_by_market(id, :all, :active)
+    |> Enum.each(fn bet ->
+      :ok = BetDatabase.update(bet.id, :status, {:market_settled, result})
     end)
   end
 
   defp market_set_status(id, status) do
-    case MarketDatabase.get_market(id) do
+    case MarketDatabase.get(id) do
       nil ->
         {:error, :market_not_found}
 
       market ->
-        MarketDatabase.put_market(id, market.name, market.description, status)
+        MarketDatabase.update(id, market.name, market.description, status)
     end
   end
 
   @spec market_get(binary) :: {:error, atom} | {:ok, Market.t()}
   def market_get(id) do
-    case MarketDatabase.get_market(id) do
+    case MarketDatabase.get(id) do
       nil ->
         {:error, :market_not_found}
 
@@ -156,29 +181,21 @@ defmodule Betunfair do
     {:ok, list}
   end
 
-  # TODO ENUMERABLE
   @spec market_pending_backs(binary) ::
           {:error, atom} | {:ok, Enumerable.t({integer(), Enumerable.t(binary)})}
   def market_pending_backs(market_id) do
     list =
-      BetDatabase.list_bets_by_market(market_id)
-      |> Enum.filter(fn bet ->
-        bet.status == :active and bet.type == :back
-      end)
+      BetDatabase.list_bets_by_market(market_id, :back, :active)
       |> Enum.sort({:asc, Bet})
       |> Enum.map(fn bet -> {bet.odds, bet.id} end)
 
     {:ok, list}
   end
 
-  # TODO ENUMERABLE
   @spec market_pending_lays(binary) :: {:error, atom} | {:ok, Enumerable.t(binary)}
   def market_pending_lays(market_id) do
     list =
-      BetDatabase.list_bets_by_market(market_id)
-      |> Enum.filter(fn bet ->
-        bet.status == :active and bet.type == :lay
-      end)
+      BetDatabase.list_bets_by_market(market_id, :lay, :active)
       |> Enum.sort({:desc, Bet})
       |> Enum.map(fn bet -> {bet.odds, bet.id} end)
 
@@ -213,32 +230,44 @@ defmodule Betunfair do
       back_bet = BetDatabase.bet_get(b_id)
       lay_bet = BetDatabase.bet_get(l_id)
 
-      # IO.inspect(BetDatabase.bet_get(b_id))
-      # IO.inspect(BetDatabase.bet_get(l_id))
       # back vision from lay stake
       real_lay_stake = trunc(lay_bet.stake / ((lay_bet.odds - 100) / 100))
 
       cond do
         trunc(back_bet.stake * (back_bet.odds / 100)) - back_bet.stake >= real_lay_stake ->
-          # IO.inspect(lay_bet.stake, label: "lay stake")
-          # IO.inspect(real_lay_stake, label: "formula lay stake")
-          BetDatabase.consume_stake(b_id, real_lay_stake)
-          BetDatabase.consume_stake(l_id, lay_bet.stake)
-          # stores matched bets
-          MatchDatabase.put(back_bet.market_id, b_id, l_id, real_lay_stake)
+          BetDatabase.update(b_id, :stake, back_bet.stake - real_lay_stake)
+          BetDatabase.update(l_id, :stake, 0)
 
         true ->
-          #IO.inspect(back_bet.stake, label: "back stake")
-          BetDatabase.consume_stake(b_id, back_bet.stake)
-          BetDatabase.consume_stake(l_id, trunc(back_bet.stake * ((lay_bet.odds - 100) / 100)))
-          # stores matched bets
-          MatchDatabase.put(back_bet.market_id, b_id, l_id, back_bet.stake)
+          # IO.inspect(back_bet.stake, label: "back stake")
+          BetDatabase.update(b_id, :stake, 0)
+
+          BetDatabase.update(
+            l_id,
+            :stake,
+            lay_bet.stake - trunc(back_bet.stake * ((lay_bet.odds - 100) / 100))
+          )
       end
+
+      # update matched_bets
+      new_matched_bets = back_bet.matched_bets ++ [l_id]
+
+      BetDatabase.update(
+        b_id,
+        :matched_bets,
+        new_matched_bets
+      )
+
+      new_matched_bets = lay_bet.matched_bets ++ [b_id]
+
+      BetDatabase.update(
+        l_id,
+        :matched_bets,
+        new_matched_bets
+      )
 
       back_bet = BetDatabase.bet_get(b_id)
       lay_bet = BetDatabase.bet_get(l_id)
-      # IO.inspect(BetDatabase.bet_get(b_id))
-      # IO.inspect(BetDatabase.bet_get(l_id))
 
       # removes empty
       new_backs =
@@ -279,7 +308,7 @@ defmodule Betunfair do
   end
 
   defp bet_new(user_id, market_id, type, stake, odds) do
-    case MarketDatabase.get_market(market_id) do
+    case MarketDatabase.get(market_id) do
       nil ->
         {:error, :market_not_found}
 
@@ -317,9 +346,16 @@ defmodule Betunfair do
         {:error, :bet_not_found}
 
       bet ->
-        # only unmatched stake
+        # returns unmatched stake
         UserDatabase.user_deposit(bet.user_id, bet.stake)
-        BetDatabase.bet_set_status(bet_id, :cancelled)
+
+        if not Enum.empty?(bet.matched_bets) do
+          # set unmatchable, but applies for later money returns
+          BetDatabase.update(bet_id, :original_stake, bet.original_stake - bet.stake)
+          BetDatabase.update(bet_id, :stake, 0)
+        else
+          BetDatabase.update(bet_id, :status, :cancelled)
+        end
     end
   end
 
@@ -339,8 +375,9 @@ defmodule Betunfair do
         {:error, :bet_not_found}
 
       bet ->
-        {:ok,
-         %{id: bet.id, bet_type: bet.type, stake: bet.stake, odds: bet.odds, status: bet.status}}
+        # {:ok,
+        # %{id: bet.id, bet_type: bet.bet_type, stake: bet.stake, odds: bet.odds, status: bet.status}}
+        {:ok, Map.from_struct(bet)}
     end
   end
 

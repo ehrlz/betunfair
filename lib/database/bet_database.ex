@@ -19,53 +19,49 @@ defmodule BetDatabase do
           CubDB.put(bet_db, bet.id, bet)
           bet.id
 
-        # TODO cancelled market?
-        {:set_status, bet_id, status} ->
-          case CubDB.get(bet_db, bet_id) do
-            nil ->
-              {:error, :bet_not_found}
-
-            bet ->
-              canc_bet = Map.put(bet, :status, status)
-              CubDB.put(bet_db, bet_id, canc_bet)
-          end
-
         {:get, bet_id} ->
           CubDB.get(bet_db, bet_id)
 
-        {:list, market_id} ->
-          CubDB.select(bet_db)
-          |> Enum.map(fn {_id, bet} -> bet end)
-          |> Enum.filter(fn bet -> bet.market_id == market_id end)
+        {:list_by_market, market_id, type, status} ->
+          list_bets =
+            CubDB.select(bet_db)
+            |> Stream.map(fn {_id, bet} -> bet end)
+            |> Stream.filter(fn bet -> bet.market_id == market_id end)
 
-        {:list_by_market, market_id, status} ->
-          list_bets = CubDB.select(bet_db)
-          |> Enum.map(fn {_id, bet} -> bet end)
-          |> Enum.filter(fn bet -> bet.market_id == market_id end)
+          list_type =
+            case type do
+              :all ->
+                list_bets
+
+              type ->
+                Stream.filter(list_bets, fn bet -> bet.bet_type == type end)
+            end
 
           case status do
-            nil ->
+            :all ->
               list_bets
+
             status ->
-              Enum.filter(list_bets, fn bet -> bet.status == status end)
+              Stream.filter(list_type, fn bet -> bet.status == status end)
           end
+          |> Enum.to_list()
 
         {:list_by_user, user_id} ->
           CubDB.select(bet_db)
-          |> Enum.map(fn {_id, bet} -> bet end)
-          |> Enum.filter(fn bet -> bet.user_id == user_id end)
+          |> Stream.map(fn {_id, bet} -> bet end)
+          |> Stream.filter(fn bet -> bet.user_id == user_id end)
+          |> Enum.to_list()
 
-        {:consume_stake, bet_id, value} ->
+        {:update, bet_id, key, value} ->
           bet = CubDB.get(bet_db, bet_id)
-          new_bet = Map.put(bet, :stake, bet.stake - value)
+          new_bet = Map.put(bet, key, value)
           CubDB.put(bet_db, bet_id, new_bet)
 
         :clear ->
           CubDB.clear(bet_db)
-          CubDB.stop(bet_db)
 
         :stop ->
-          CubDB.stop(bet_db)
+          CubDB.stop(bet_db, :normal, :infinity)
       end
 
     {:reply, reply, bet_db}
@@ -87,7 +83,7 @@ defmodule BetDatabase do
   def new_bet(user_id, market_id, type, stake, odds) do
     new_bet = %Bet{
       id: UUID.uuid1(),
-      type: type,
+      bet_type: type,
       user_id: user_id,
       market_id: market_id,
       original_stake: stake,
@@ -99,24 +95,20 @@ defmodule BetDatabase do
     GenServer.call(BetDatabase, {:new, new_bet})
   end
 
-  @spec bet_set_status(binary(), atom() | {atom(), boolean()}) :: :ok | {:error, atom()}
-  def bet_set_status(bet_id, status) do
-    GenServer.call(BetDatabase, {:set_status, bet_id, status})
-  end
-
+  @doc """
+  Returns a bet with this id, or nil if is not found
+  """
   @spec bet_get(binary()) :: Bet.t() | nil
   def bet_get(bet_id) do
     GenServer.call(BetDatabase, {:get, bet_id})
   end
 
-  @spec list_bets(binary) :: [Bet.t()]
-  def list_bets(market_id) do
-    GenServer.call(BetDatabase, {:list, market_id})
-  end
-
-  @spec list_bets_by_market(binary, atom) :: [Bet.t()]
-  def list_bets_by_market(market_id, status \\ nil) do
-    GenServer.call(BetDatabase, {:list_by_market, market_id, status})
+  @doc """
+  List bets from market with certain status or type
+  """
+  @spec list_bets_by_market(binary, atom, atom) :: [Bet.t()]
+  def list_bets_by_market(market_id, type \\ :all, status \\ :all) do
+    GenServer.call(BetDatabase, {:list_by_market, market_id, type, status})
   end
 
   @spec list_bets_by_user(binary) :: [Bet.t()]
@@ -124,41 +116,23 @@ defmodule BetDatabase do
     GenServer.call(BetDatabase, {:list_by_user, user_id})
   end
 
-  @spec consume_stake(binary, integer) :: :ok
-  def consume_stake(bet_id, value) do
-    GenServer.call(BetDatabase, {:consume_stake, bet_id, value})
+  def update(bet_id, key, value) do
+    GenServer.call(BetDatabase, {:update, bet_id, key, value})
   end
 
   @doc """
   Removes persistent data and stops server if it's running
   """
-  def clear(name) do
-    case GenServer.whereis(BetDatabase) do
-      nil ->
-        {:ok, pid} = start_link([name])
-        GenServer.call(pid, :clear)
-        GenServer.stop(pid)
-
-      pid ->
-        GenServer.call(pid, :clear)
-        GenServer.stop(pid)
-    end
-
-    :ok
+  def clear() do
+    GenServer.call(BetDatabase, :clear)
   end
 
+  @spec stop :: :ok
   @doc """
-  Stops server process
+  Stops the server
   """
   def stop() do
-    case GenServer.whereis(BetDatabase) do
-      nil ->
-        {:error, :exchange_not_deployed}
-
-      pid ->
-        GenServer.call(BetDatabase, :stop)
-        GenServer.stop(pid)
-        :ok
-    end
+    GenServer.call(BetDatabase, :stop)
+    GenServer.stop(BetDatabase, :normal, :infinity)
   end
 end

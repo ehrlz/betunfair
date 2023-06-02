@@ -1,3 +1,3 @@
 defmodule Market do
-  defstruct name: nil, description: nil, status: :active
+  defstruct id: nil, name: nil, description: nil, status: :active
 end

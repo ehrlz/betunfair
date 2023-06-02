@@ -18,30 +18,54 @@ defmodule MarketDatabase do
         {:get, market_id} ->
           CubDB.get(db_markets, market_id)
 
-        :list ->
-          list =
+        {:list, status} ->
+          stream =
             CubDB.select(db_markets)
-            |> Enum.to_list()
+            |> Stream.map(fn {_id, market} -> market end)
 
-          {:ok, list}
+          case status do
+            nil ->
+              stream
 
-        {:put, market_id, market} ->
-          CubDB.put(db_markets, market_id, market)
+            status ->
+              Stream.filter(stream, fn market -> market.status == status end)
+          end
+          |> Stream.map(fn market -> market.id end)
+          |> Enum.to_list()
+
+        {:put, name, description} ->
+          id = UUID.uuid1()
+
+          new_market = %Market{
+            id: id,
+            name: name,
+            description: description,
+            status: :active
+          }
+
+          CubDB.put(db_markets, id, new_market)
+          id
+
+        {:update, id, name, description, status} ->
+          new_market = %Market{
+            id: id,
+            name: name,
+            description: description,
+            status: status
+          }
+
+          CubDB.put(db_markets, id, new_market)
 
         {:delete, market_id} ->
           CubDB.delete(db_markets, market_id)
 
+        # clear----------------------------
         :clear ->
-          entries =
-            CubDB.select(db_markets)
-            |> Enum.to_list()
-            |> Enum.map(fn {id, _market} -> id end)
+          CubDB.clear(db_markets)
 
-          CubDB.delete_multi(db_markets, entries)
-          CubDB.stop(db_markets)
-
+        # stop----------------------------
         :stop ->
-          CubDB.stop(db_markets)
+          CubDB.stop(db_markets, :normal, :infinity)
       end
 
     {:reply, reply, db_markets}
@@ -59,62 +83,45 @@ defmodule MarketDatabase do
     GenServer.start_link(__MODULE__, default, name: MarketDatabase)
   end
 
-  @spec get_market(binary()) :: Market.t() | nil
-  def get_market(market_id) do
+  @spec get(binary()) :: Market.t() | nil
+  def get(market_id) do
     GenServer.call(MarketDatabase, {:get, market_id})
   end
 
-  @spec list_markets :: {:ok, [binary()]}
-  def list_markets() do
-    GenServer.call(MarketDatabase, :list)
+  @spec list(nil | atom) :: [binary()]
+  def list(status \\ nil) do
+    GenServer.call(MarketDatabase, {:list, status})
   end
 
-  def put_market(market_id, name, description \\ nil, status \\ :active) do
-    new_market = %Market{
-      name: name,
-      description: description,
-      status: status
-    }
-
-    GenServer.call(MarketDatabase, {:put, market_id, new_market})
+  @spec put(binary(), nil | binary()) :: binary()
+  def put(name, description \\ nil) do
+    GenServer.call(MarketDatabase, {:put, name, description})
   end
 
-  def delete_market(market_id) do
+  @spec update(binary(), binary(), nil | binary(), atom()) :: :ok
+  def update(id, name, description, status) do
+    GenServer.call(MarketDatabase, {:update, id, name, description, status})
+  end
+
+  @spec delete(binary()) :: :ok
+  def delete(market_id) do
     GenServer.call(MarketDatabase, {:delete, market_id})
   end
 
   @doc """
   Removes persistent data and stops server if it's running
   """
-  @spec clear(name :: binary()) :: :ok
-  def clear(name) do
-    case GenServer.whereis(MarketDatabase) do
-      nil ->
-        {:ok, pid} = start_link([name])
-        GenServer.call(pid, :clear)
-        GenServer.stop(pid)
-
-      pid ->
-        GenServer.call(pid, :clear)
-        GenServer.stop(pid)
-    end
-
-    :ok
+  @spec clear() :: :ok
+  def clear() do
+    GenServer.call(MarketDatabase, :clear)
   end
 
+  @spec stop :: :ok
   @doc """
-  Stops server process
+  Stops the server
   """
-  @spec stop() :: :ok | {:error, :exchange_not_deployed}
   def stop() do
-    case GenServer.whereis(MarketDatabase) do
-      nil ->
-        {:error, :exchange_not_deployed}
-
-      pid ->
-        GenServer.call(MarketDatabase, :stop)
-        GenServer.stop(pid)
-        :ok
-    end
+    GenServer.call(MarketDatabase, :stop)
+    GenServer.stop(MarketDatabase, :normal, :infinity)
   end
 end

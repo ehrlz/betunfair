@@ -29,3 +29,5 @@ betunfair2-*.tar
 /data
 
 /.elixir_ls
+
+.tool-versions

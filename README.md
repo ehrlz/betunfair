@@ -7,7 +7,7 @@ A betting exchange platform implementation from Universidad Politécnica de Madr
 
 
 
-
+If a bet is cancelled and has stake matched, the remaining stake goes to 0 but remains ":active".
 
 
 ## Installation
