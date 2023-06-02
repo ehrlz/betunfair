@@ -112,6 +112,23 @@ defmodule OtherTests do
     assert {:ok, %{balance: 1000}} = Betunfair.user_get(u1)
   end
 
+  test "example enunciado" do
+    assert {:ok, _} = Betunfair.clean("otherdb")
+    assert {:ok, _} = Betunfair.start_link("otherdb")
+    assert {:ok, a} = Betunfair.user_create("a", "a")
+    assert {:ok, b} = Betunfair.user_create("b", "b")
+    assert {:ok, c} = Betunfair.user_create("c", "c")
+    assert {:ok, d} = Betunfair.user_create("d", "d")
+    assert {:ok, e} = Betunfair.user_create("e", "e")
+    assert is_ok(Betunfair.user_deposit(a, 5000))
+    assert is_ok(Betunfair.user_deposit(b, 5000))
+    assert is_ok(Betunfair.user_deposit(c, 5000))
+    assert is_ok(Betunfair.user_deposit(d, 5000))
+    assert is_ok(Betunfair.user_deposit(e, 5000))
+    assert {:ok,m1} = Betunfair.market_create("rmw","Real Madrid wins")
+    assert is_ok(Betunfair.market_match(m1))
+    assert is_ok(Betunfair.user_deposit(a, 5000))
+  end
 
 
 
