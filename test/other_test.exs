@@ -96,6 +96,15 @@ defmodule OtherTests do
 
   end
 
+  test "user1" do
+    assert {:ok, _} = Betunfair.clean("otherdb")
+    assert {:ok, _} = Betunfair.start_link("otherdb")
+    assert {:ok, u1} = Betunfair.user_create("u1", "Daniel Milbradt")
+    assert is_ok(Betunfair.user_deposit(u1, 500))
+    assert {:ok, %{balance: 500}} = Betunfair.user_get(u1)
+  end
+
+
   defp is_error(:error), do: true
   defp is_error({:error, _}), do: true
   defp is_error(_), do: false
