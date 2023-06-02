@@ -3,8 +3,8 @@ defmodule MarketTest do
   doctest Betunfair
 
   setup do
-    Betunfair.clean("testdb")
-    Betunfair.start_link("testdb")
+    Betunfair.clean("market_test")
+    Betunfair.start_link("market_test")
     :ok
   end
 

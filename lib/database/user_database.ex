@@ -44,7 +44,6 @@ defmodule UserDatabase do
         # deposit----------------------------
 
         {:user_deposit, id, amount} ->
-          1/0
           case CubDB.get(db_users, id) do
             nil ->
               {:error, :user_not_found}

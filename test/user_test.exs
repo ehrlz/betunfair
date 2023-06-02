@@ -3,8 +3,8 @@ defmodule UserTest do
   doctest UserDatabase
 
   setup do
-    assert {:ok, _} = Betunfair.clean("testdb")
-    assert {:ok, _} = Betunfair.start_link("testdb")
+    assert {:ok, _} = Betunfair.clean("userdb")
+    assert {:ok, _} = Betunfair.start_link("userdb")
     :ok
   end
 

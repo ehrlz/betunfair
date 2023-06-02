@@ -1,2 +1,2 @@
-#ExUnit.configure(excluded_tags: [:async])
+# ExUnit.configure(excluded_tags: [:async])
 ExUnit.start()

@@ -15,11 +15,8 @@ defmodule MySupervisor do
     Supervisor.init(children, strategy: :one_for_one)
   end
 
+  @spec stop :: :ok
   def stop() do
-    Supervisor.stop(__MODULE__)
-  end
-
-  def children() do
-    Supervisor.count_children(__MODULE__)
+    :ok = Supervisor.stop(__MODULE__, :normal)
   end
 end

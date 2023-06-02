@@ -3,8 +3,8 @@ defmodule BetTest do
   doctest Betunfair
 
   setup do
-    assert {:ok, _} = Betunfair.clean("app")
-    assert {:ok, _} = Betunfair.start_link("app")
+    assert {:ok, _} = Betunfair.clean("betdb")
+    assert {:ok, _} = Betunfair.start_link("betdb")
     :ok
   end
 

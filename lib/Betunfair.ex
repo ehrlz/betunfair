@@ -8,8 +8,6 @@ defmodule Betunfair do
   """
   def start_link(name) do
     MySupervisor.start_link([name])
-
-    IO.inspect(MySupervisor.children())
     {:ok,name}
   end
 
@@ -27,18 +25,13 @@ defmodule Betunfair do
   Stops the exchange and removes persistent data. Initiates app for cleaning.
   """
   def clean(name) do
-    case start_link(name) do
-      {:ok, _} ->
-        :ok = UserDatabase.clear()
-        :ok = MarketDatabase.clear()
-        :ok = BetDatabase.clear()
+    start_link(name)
+    :ok = UserDatabase.clear()
+    :ok = MarketDatabase.clear()
+    :ok = BetDatabase.clear()
 
-        :ok = stop()
-        {:ok, name}
-
-      other_error ->
-        other_error
-    end
+    :ok = stop()
+    {:ok, name}
   end
 
   # MARKET
