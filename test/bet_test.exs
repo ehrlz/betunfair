@@ -5,7 +5,6 @@ defmodule BetTest do
   setup do
     assert {:ok, _} = Betunfair.clean("betdb")
     assert {:ok, _} = Betunfair.start_link("betdb")
-    assert not is_nil(Process.whereis(BetDatabase))
     :ok
   end
 
@@ -113,14 +112,6 @@ defmodule BetTest do
 
     {:ok, bet2} = Betunfair.bet_get(id2)
     assert bet2.stake == 150
-
-    assert BetDatabase.update(id, :stake, bet.stake - 100) == :ok
-    {:ok, bet} = Betunfair.bet_get(id)
-    assert bet.stake == 200
-
-    assert BetDatabase.update(id2, :stake, bet2.stake - 100) == :ok
-    {:ok, bet2} = Betunfair.bet_get(id2)
-    assert bet2.stake == 50
   end
 
   test "matched_bets" do
@@ -142,8 +133,9 @@ defmodule BetTest do
 
   test "matched_bets2" do
     {:ok, user_id} = Betunfair.user_create("00001111A", "Pepe Viyuela")
-    {:ok, market_id} = Betunfair.market_create("Nadal-Nole", "Prueba mercado")
-    assert Betunfair.user_deposit(user_id, 1000) == :ok
+    assert Betunfair.user_deposit(user_id, 100_000) == :ok
+
+    {:ok, market_id} = Betunfair.market_create("Nadal gana", "Prueba mercado")
 
     {:ok, id} = Betunfair.bet_lay(user_id, market_id, 300, 150)
     {:ok, id2} = Betunfair.bet_back(user_id, market_id, 150, 150)
@@ -153,5 +145,16 @@ defmodule BetTest do
     assert :ok = Betunfair.market_settle(market_id, true)
     assert {:ok, %{status: {:market_settled, true}}} = Betunfair.bet_get(id)
     assert {:ok, %{status: {:market_settled, true}}} = Betunfair.bet_get(id2)
+
+    {:ok, market_id2} = Betunfair.market_create("Real Madrid pierde", "Prueba mercado")
+
+    {:ok, id3} = Betunfair.bet_lay(user_id, market_id2, 300, 150)
+    {:ok, id4} = Betunfair.bet_back(user_id, market_id2, 150, 150)
+
+    assert :ok = Betunfair.market_match(market_id2)
+
+    assert :ok = Betunfair.market_settle(market_id2, false)
+    assert {:ok, %{status: {:market_settled, false}}} = Betunfair.bet_get(id3)
+    assert {:ok, %{status: {:market_settled, false}}} = Betunfair.bet_get(id4)
   end
 end

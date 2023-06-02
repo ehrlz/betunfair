@@ -5,7 +5,6 @@ defmodule MarketTest do
   setup do
     Betunfair.clean("market_test")
     Betunfair.start_link("market_test")
-    assert not is_nil(Process.whereis(MarketDatabase))
     :ok
   end
 

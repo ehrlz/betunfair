@@ -7,10 +7,10 @@ defmodule MySupervisor do
 
   @impl true
   def init(arg) do
+    [name] = arg
+
     children = [
-      {UserDatabase, arg},
-      {MarketDatabase, arg},
-      {BetDatabase, arg}
+      Supervisor.child_spec({CubDB, "data/#{name}"}, name: Database)
     ]
 
     Supervisor.init(children, strategy: :one_for_one)
