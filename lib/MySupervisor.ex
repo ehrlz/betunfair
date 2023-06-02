@@ -10,9 +10,16 @@ defmodule MySupervisor do
     [name] = arg
 
     children = [
-      Supervisor.child_spec({CubDB, "data/#{name}"}, name: Database)
+      {CubDB, ["data/#{name}"]}
     ]
 
     Supervisor.init(children, strategy: :one_for_one)
+  end
+
+  def register_database() do
+    children = Supervisor.which_children(__MODULE__)
+    [{_,pid,_,_}] = children
+    Process.register(pid,Database)
+    :ok
   end
 end

@@ -1,13 +1,15 @@
 defmodule Betunfair do
   @moduledoc """
-  Project from Universidad Politécnica de Madrid
+  Programming Scalable Systems. 2023. Universidad Politécnica de Madrid
   """
+
   @doc """
   Starts exchange. If name exists, recovers market.
   """
   def start_link(name) do
-    # MySupervisor.start_link([name])
-    CubDB.start_link("data/#{name}", name: Database)
+    MySupervisor.start_link([name])
+    # CubDB.start_link("data/#{name}", name: Database)
+    MySupervisor.register_database()
     {:ok, name}
   end
 
@@ -15,17 +17,19 @@ defmodule Betunfair do
   Shutdown running (if is running) exchange preserving data.
   """
   def stop() do
-    #case Process.whereis(MySupervisor) do
-
-    case Process.whereis(Database) do
+    case Process.whereis(MySupervisor) do
+      # case Process.whereis(Database) do
       nil ->
         :noop
 
       pid ->
         case Process.alive?(pid) do
           true ->
-            GenServer.stop(pid)
-
+            try do
+              GenServer.stop(pid)
+            catch
+              :exit -> :ok
+            end
           false ->
             :noop
         end
@@ -40,6 +44,7 @@ defmodule Betunfair do
   def clean(name) do
     :ok = stop()
     {:ok, _} = start_link(name)
+
     :ok = CubDB.clear(Database)
     :ok = stop()
     {:ok, name}
