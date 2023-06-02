@@ -61,7 +61,7 @@ defmodule BetDatabase do
           CubDB.clear(bet_db)
 
         :stop ->
-          CubDB.stop(bet_db)
+          CubDB.stop(bet_db, :normal, :infinity)
       end
 
     {:reply, reply, bet_db}
@@ -133,6 +133,6 @@ defmodule BetDatabase do
   """
   def stop() do
     GenServer.call(BetDatabase, :stop)
-    GenServer.stop(BetDatabase)
+    GenServer.stop(BetDatabase, :normal, :infinity)
   end
 end

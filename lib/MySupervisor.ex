@@ -6,17 +6,13 @@ defmodule MySupervisor do
   end
 
   @impl true
-  def init(name) do
+  def init(arg) do
     children = [
-      {UserDatabase, [name]},
-      {MarketDatabase, [name]},
-      {BetDatabase, [name]}
+      {UserDatabase, arg},
+      {MarketDatabase, arg},
+      {BetDatabase, arg}
     ]
-    Supervisor.init(children, strategy: :one_for_one)
-  end
 
-  @spec stop :: :ok
-  def stop() do
-    :ok = Supervisor.stop(__MODULE__, :normal)
+    Supervisor.init(children, strategy: :one_for_one)
   end
 end

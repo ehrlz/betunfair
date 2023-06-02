@@ -5,6 +5,7 @@ defmodule BetTest do
   setup do
     assert {:ok, _} = Betunfair.clean("betdb")
     assert {:ok, _} = Betunfair.start_link("betdb")
+    assert not is_nil(Process.whereis(BetDatabase))
     :ok
   end
 

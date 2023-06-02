@@ -65,7 +65,7 @@ defmodule MarketDatabase do
 
         # stop----------------------------
         :stop ->
-          CubDB.stop(db_markets)
+          CubDB.stop(db_markets, :normal, :infinity)
       end
 
     {:reply, reply, db_markets}
@@ -122,6 +122,6 @@ defmodule MarketDatabase do
   """
   def stop() do
     GenServer.call(MarketDatabase, :stop)
-    GenServer.stop(MarketDatabase)
+    GenServer.stop(MarketDatabase, :normal, :infinity)
   end
 end

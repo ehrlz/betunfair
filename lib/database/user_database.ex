@@ -88,7 +88,7 @@ defmodule UserDatabase do
 
         # stop----------------------------
         :stop ->
-          CubDB.stop(db_users)
+          CubDB.stop(db_users, :normal, :infinity)
       end
 
     {:reply, reply, db_users}
@@ -136,6 +136,6 @@ defmodule UserDatabase do
   """
   def stop() do
     GenServer.call(UserDatabase, :stop)
-    GenServer.stop(UserDatabase)
+    GenServer.stop(UserDatabase, :normal, :infinity)
   end
 end

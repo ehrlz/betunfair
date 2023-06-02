@@ -7,25 +7,48 @@ defmodule Betunfair do
   Starts exchange. If name exists, recovers market. If market is up, nothing is done
   """
   def start_link(name) do
-    MySupervisor.start_link([name])
-    {:ok,name}
+    case MySupervisor.start_link([name]) do
+      {:ok, _} -> {:ok, name}
+      error -> error
+    end
   end
 
   @doc """
-  Shutdown running exchange preserving data.
+  Shutdown running (if is running) exchange preserving data.
   """
   def stop() do
     # :ok = UserDatabase.stop()
     # :ok = MarketDatabase.stop()
     # :ok = BetDatabase.stop()
-    :ok = MySupervisor.stop()
+    case GenServer.whereis(MySupervisor) do
+      nil ->
+        :noop
+
+      pid ->
+        case Process.alive?(pid) do
+          true ->
+            try do
+              :ok = Supervisor.stop(MySupervisor, :normal, :infinity)
+            catch
+              :exit, _ -> :ok
+            end
+
+
+          false ->
+            :noop
+        end
+    end
+
+    :ok
   end
 
   @doc """
   Stops the exchange and removes persistent data. Initiates app for cleaning.
   """
   def clean(name) do
-    start_link(name)
+    :ok = stop()
+    {:ok, _} = start_link(name)
+
     :ok = UserDatabase.clear()
     :ok = MarketDatabase.clear()
     :ok = BetDatabase.clear()

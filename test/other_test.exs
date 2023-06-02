@@ -26,12 +26,11 @@ defmodule OtherTests do
     assert is_ok(Betunfair.user_withdraw(u1, 1000))
     assert is_ok(Betunfair.user_deposit(u2, 3500))
 
-
     assert {:ok, m1} = Betunfair.market_create("inter gana", "UCL final")
     assert {:ok, m2} = Betunfair.market_create("nole gana RG", "paris tenis")
 
-    assert {:ok, b1} = Betunfair.bet_back(u1,m1,1000,110)
-    assert {:ok, b2} = Betunfair.bet_lay(u2,m1,1000,110)
+    assert {:ok, b1} = Betunfair.bet_back(u1, m1, 1000, 110)
+    assert {:ok, b2} = Betunfair.bet_lay(u2, m1, 1000, 110)
 
     assert {:ok, _} = Betunfair.clean("otherdb")
     assert {:ok, _} = Betunfair.start_link("otherdb")
