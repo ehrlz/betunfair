@@ -7,12 +7,19 @@ defmodule MySupervisor do
 
   @impl true
   def init(arg) do
+    [name] = arg
+
     children = [
-      {UserDatabase, arg},
-      {MarketDatabase, arg},
-      {BetDatabase, arg}
+      {CubDB, ["data/#{name}"]}
     ]
 
     Supervisor.init(children, strategy: :one_for_one)
+  end
+
+  def register_database() do
+    children = Supervisor.which_children(__MODULE__)
+    [{_,pid,_,_}] = children
+    Process.register(pid,Database)
+    :ok
   end
 end
