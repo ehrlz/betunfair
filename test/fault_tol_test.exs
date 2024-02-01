@@ -52,4 +52,25 @@ defmodule FaultTolTest do
     assert {:ok, _} = Betunfair.market_get(m1)
     assert {:ok, _} = Betunfair.bet_get(b1)
   end
+
+
+  # test "concurrency" do
+  #   {:ok, u1} = Betunfair.user_create("u1", "Francisco Gonzalez")
+  #   {:ok, m1} = Betunfair.market_create("real madrid wins", "prueba")
+
+  #   :ok = Betunfair.user_deposit(u1,100000000000)
+
+  #   for _ <- 1..1000  do
+  #     Betunfair.bet_back(u1,m1,:rand.uniform(1000),:random.uniform(2))
+  #   end
+
+  #   for x <- 1..1000 do
+  #     Process.spawn(fn ->
+  #       init = DateTime.utc_now()
+  #       {:ok, list} = Betunfair.market_pending_backs(m1)
+  #       time_lapsed = DateTime.diff(init,DateTime.utc_now())
+  #       IO.inspect(time_lapsed)
+  #     end, [])
+  #   end
+  # end
 end
